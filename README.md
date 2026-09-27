@@ -1,10 +1,15 @@
 # VerusMetal
 
-Apple Silicon CLI miner with an independently written VerusHash v2.2 CPU/Metal
-implementation. Each GPU thread computes one complete hash. Every candidate is
-checked on the CPU before submission to the pool.
+VerusCoin GPU miner for Apple Silicon, built with Swift and Metal and an
+independently written VerusHash v2.2 implementation. Nonce search and full hashing
+run on the GPU, with one complete hash per GPU thread.
 
-**Status:** development miner tested on Apple M4. LuckPool accepted two shares
+The CPU manages the pool connection and GPU dispatches, and verifies GPU-found
+share candidates before submission. The separate CPU hash implementation also
+supports correctness tests and CPU-versus-GPU benchmarks. The mining command
+uses the GPU for nonce search; it has no CPU mining mode.
+
+**Status:** development GPU miner tested on Apple M4. LuckPool accepted two shares
 in a 115-second test on 2026-09-27, at 1.038 MH/s effective throughput. This is a
 short functional test, not a long-term stability or performance guarantee.
 [Validation and evidence](Docs/VALIDATION.md).
@@ -61,7 +66,7 @@ validation. There is no automatic fallback to plaintext. The certificate on
 LuckPool port 3958 was expired when checked on 2026-09-27; the successful test used
 port 3956. Certificate failures remain fatal to that connection.
 
-The miner supports job changes, nonce search, CPU verification, share submission
+The miner supports job changes, GPU nonce search, CPU share verification, submission
 and reconnection with bounded backoff. Supported layouts and operational limits
 are described in [protocol notes](Docs/PROTOCOL.md).
 
@@ -90,7 +95,7 @@ remain unresolved rather than being counted as accepted.
 | --- | --- |
 | `Sources/VerusMetalCore` | Transport, jobs, GPU search and telemetry |
 | `Sources/verusmetal` | CLI and mining lifecycle |
-| `src/v22` | Canonical CPU/Metal hash core and standalone benchmark |
+| `src/v22` | Metal hash core, CPU verifier and standalone benchmark |
 | `tests` | Independent vectors, unit tests and local pool integration |
 | `Docs` | Validation, protocol and development documentation |
 | `Docs/research`, `experiments`, `tools` | Historical experiments and reproduction tools |
