@@ -90,10 +90,15 @@ parallel-study-v22:
 test-parallel-v22: parallel-study-v22
 	./build/v22/register-study/study test 64 i12_combined i3_control i3_aes_pair i3_cross_pair i3_cross_fold
 
-.PHONY: miner test-miner integration-miner mine screening
+.PHONY: miner standalone test-miner integration-miner mine screening
 miner:
 	xcodegen generate
 	xcodebuild -project VerusMetal.xcodeproj -scheme VerusMetal -configuration Release -derivedDataPath build/miner build
+
+standalone: miner
+	mkdir -p Distribution
+	install -m 755 build/miner/Build/Products/Release/verusmetal Distribution/verusmetal
+	cd Distribution && shasum -a 256 verusmetal > verusmetal.sha256
 
 test-miner:
 	xcodegen generate

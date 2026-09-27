@@ -181,3 +181,78 @@ final class LifecycleTests: XCTestCase {
         XCTAssertThrowsError(try StatisticsHTTPServer(store:StatisticsStore()).start(bind:"0.0.0.0:4079"))
     }
 }
+
+final class TelemetryTests: XCTestCase {
+    func testIntervalRatesAndIdleTime() throws {
+        var before = MinerSnapshot()
+        before.nonces = 100; before.dispatches = 1; before.gpuSeconds = 1
+        before.activeSeconds = 2; before.uptimeSeconds = 3
+        var after = before
+        after.nonces = 2100; after.dispatches = 3; after.gpuSeconds = 3
+        after.activeSeconds = 6; after.uptimeSeconds = 13
+        let fields = after.telemetryFields(since:before,batchSize:1000)
+        XCTAssertEqual(fields["interval_nonces"],"2000")
+        XCTAssertEqual(fields["interval_dispatches"],"2")
+        XCTAssertEqual(fields["interval_hashrate"],"200.0")
+        XCTAssertEqual(fields["interval_gpu_hashrate"],"1000.0")
+        XCTAssertEqual(fields["interval_command_hashrate"],"500.0")
+        XCTAssertEqual(fields["interval_command_overhead_seconds"],"2.0")
+        XCTAssertEqual(fields["interval_outside_commands_seconds"],"6.0")
+        var idle = after; idle.uptimeSeconds += 30
+        let idleFields = idle.telemetryFields(since:after,batchSize:1000)
+        XCTAssertEqual(idleFields["interval_hashrate"],"0.0")
+        XCTAssertEqual(idleFields["interval_gpu_hashrate"],"0.0")
+        XCTAssertEqual(idleFields["interval_outside_commands_seconds"],"30.0")
+    }
+
+    func testDispatchAccountingAcrossFlushes() throws {
+        var accumulator = SearchStatisticsAccumulator()
+        let stats = StatisticsStore()
+        for i in 0..<17 {
+            let batch = SearchBatch(nonceCount:64,gpuSeconds:0.001,
+                                    wallStartTime:Double(i),wallEndTime:Double(i)+0.002,candidates:[])
+            accumulator.append(batch)?.record(in:stats)
+        }
+        XCTAssertEqual(stats.snapshot().dispatches,16)
+        accumulator.flush()?.record(in:stats)
+        XCTAssertEqual(stats.snapshot().dispatches,17)
+        XCTAssertEqual(stats.snapshot().nonces,1088)
+        XCTAssertNil(accumulator.flush())
+    }
+
+    func testShareContextSurvivesTargetChangeAndLogAppends() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:directory) }
+        let file = directory.appendingPathComponent("events.jsonl")
+        let historical = "{\"schemaVersion\":1,\"timestamp\":\"2026-09-27T00:00:00Z\"}\n"
+        try Data(historical.utf8).write(to:file)
+        let writer = JSONLEventWriter(path:file.path), stats = StatisticsStore()
+        let coordinator = MiningCoordinator(stats:stats,writer:writer,onMessage:{ _ in })
+        coordinator.start()
+        let old = try makeJob(), newer = try makeJob(generation:2,target:UInt256(bigEndian:[1]))
+        coordinator.handle(.target(old.target)); coordinator.handle(.job(old))
+        let share = ShareMetadata(id:10,job:old)
+        coordinator.handle(.shareSubmitted(share))
+        coordinator.handle(.target(newer.target)); coordinator.handle(.job(newer))
+        coordinator.handle(.shareResult(share:share,accepted:false,message:"pool rejected share (code 23)",responseMilliseconds:123.5))
+        coordinator.finish()
+        XCTAssertNil(writer.failure)
+        let raw = try String(contentsOf:file,encoding:.utf8)
+        XCTAssertTrue(raw.hasPrefix(historical))
+        let events = try raw.split(separator:"\n").dropFirst().map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])
+        }
+        XCTAssertTrue(events.allSatisfy { ($0["schemaVersion"] as? Int) == 2 })
+        let stamps = try events.map { try XCTUnwrap($0["monotonicNanoseconds"] as? UInt64) }
+        XCTAssertEqual(stamps,stamps.sorted())
+        let timestamp = try XCTUnwrap(events.first?["timestamp"] as? String)
+        XCTAssertNotNil(timestamp.range(of:#"\.\d{3}Z$"#,options:.regularExpression))
+        let rejected = try XCTUnwrap(events.first { ($0["type"] as? String) == "share_rejected" })
+        let fields = try XCTUnwrap(rejected["fields"] as? [String:String])
+        XCTAssertEqual(fields["generation"],"1")
+        XCTAssertEqual(fields["target_hex"],old.target.bigEndianBytes.hex)
+        XCTAssertEqual(fields["response_ms"],"123.5")
+        XCTAssertEqual(stats.snapshot().submitted,1); XCTAssertEqual(stats.snapshot().rejected,1)
+    }
+}

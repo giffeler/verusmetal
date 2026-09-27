@@ -109,6 +109,7 @@ VerusMetal 0.1.0 — Apple Silicon VerusHash v2.2 miner
   verusmetal mine --config Config/local.json [--duration SECONDS]
   verusmetal mine --pool stratum+ssl://host:port --wallet address [--worker m4]
                  [--batch 4096] [--stats-file path] [--stats-interval 10]
+                 [--telemetry-interval 30]
                  [--api-bind 127.0.0.1:4079] [--stop-after-shares N]
 
 The password is VERUSMETAL_POOL_PASSWORD or "x" and is never logged.

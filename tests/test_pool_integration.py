@@ -5,14 +5,29 @@ No external pool is contacted. The synthetic address must never receive funds.
 """
 from pathlib import Path
 import ctypes
+import datetime
+import math
+import re
+import argparse
+import errno
+import fcntl
 import json
+import os
+import pty
 import socket
+import struct
 import subprocess
+import termios
 import threading
 import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser()
+parser.add_argument('--terminal-width', type=int, help='Exercise status output in a pseudo-terminal')
+options = parser.parse_args()
+if options.terminal_width is not None and options.terminal_width < 2:
+    parser.error('terminal width must be at least 2')
 BINARY = ROOT / 'build/miner/Build/Products/Release/verusmetal'
 CHECKER = ROOT / 'build/setup/libverus-check.dylib'
 WALLET = 'R9HDHYTuwAr3PyRkXrhYgwycrxC7Xja8zs'
@@ -92,6 +107,9 @@ def serve():
                     assert request['method']=='mining.submit'
                     validate_share(request['params'],work,prefix)
                     accepted.append({'session':session,'job':work[0]})
+                    # A pending share retains its submission target across an update.
+                    send(sock,{'method':'mining.set_target','params':[f'{TARGET//2:064x}']})
+                    time.sleep(.15)
                     send(sock,{'id':request['id'],'result':True,'error':None})
                     # Exercise clean disconnect and a fresh subscription after one accepted share.
                     time.sleep(.02)
@@ -109,11 +127,48 @@ def serve():
 thread=threading.Thread(target=serve,daemon=True);thread.start()
 log=ROOT/'build/setup/local-pool-events.jsonl'
 if log.exists():log.unlink()
-result=subprocess.run([str(BINARY),'mine','--pool',f'stratum+tcp://127.0.0.1:{port}',
+command=[str(BINARY),'mine','--pool',f'stratum+tcp://127.0.0.1:{port}',
     '--wallet',WALLET,'--worker','m4','--batch','64','--duration','15','--stop-after-shares','2',
-    '--stats-file',str(log),'--stats-interval','1','--api-bind',f'127.0.0.1:{api_port}'],capture_output=True,text=True,timeout=25)
+    '--stats-file',str(log),'--stats-interval','240','--telemetry-interval','1','--api-bind',f'127.0.0.1:{api_port}']
+if options.terminal_width is None:
+    captured=subprocess.run(command,capture_output=True,timeout=25)
+    result=subprocess.CompletedProcess(command,captured.returncode,captured.stdout.decode(),captured.stderr.decode())
+    assert '\x1b' not in result.stdout and '\r' not in result.stdout
+else:
+    master,slave=pty.openpty()
+    fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',24,options.terminal_width,0,0))
+    chunks=[]
+    def read_terminal():
+        try:
+            while True:
+                chunk=os.read(master,4096)
+                if not chunk:break
+                chunks.append(chunk)
+        except OSError as error:
+            if error.errno != errno.EIO:errors.append(repr(error))
+    process=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=slave,stderr=slave)
+    os.close(slave)
+    reader=threading.Thread(target=read_terminal,daemon=True);reader.start()
+    try:
+        code=process.wait(timeout=25)
+    finally:
+        if process.poll() is None:process.kill();process.wait()
+        reader.join(timeout=2)
+        os.close(master)
+    output=b''.join(chunks).decode()
+    result=subprocess.CompletedProcess(command,code,output,'')
+    refresh='\r\x1b[2K'
+    assert output.count(refresh)>=2,repr(output)
+    assert output.endswith('\r\n'),repr(output)
+    for frame in output.split(refresh)[1:]:
+        line=frame.split('\r')[0].split('\n')[0]
+        if 'MH/s' in line:
+            assert len(line)<options.terminal_width,(len(line),line)
+            assert '\n' not in frame.rstrip('\r\n'),repr(frame)
+    assert 'shares=2/0' in output and 'stopped' in output,repr(output)
 thread.join(timeout=1)
 print(result.stdout);print(result.stderr)
+assert 'Share accepted' not in result.stdout
 assert not errors,errors
 assert result.returncode==0,result.returncode
 assert len(accepted)==2,accepted
@@ -124,3 +179,32 @@ assert sum(r['type']=='session_ended' for r in records)==1
 assert sum(r['type']=='connected' for r in records)>=2
 assert records[-1]['fields']['accepted']=='2'
 print('Local pool integration passed: two CPU-verified shares, PBaaS and legacy jobs, clean replacement, reconnect, loopback API.')
+
+assert all(r['schemaVersion']==2 for r in records)
+assert all(re.search(r'\.\d{3}Z$',r['timestamp']) for r in records)
+for r in records:datetime.datetime.fromisoformat(r['timestamp'].replace('Z','+00:00'))
+monotonic=[r['monotonicNanoseconds'] for r in records]
+assert monotonic==sorted(monotonic)
+submissions={r['fields']['id']:r for r in records if r['type']=='share_submitted'}
+for reply in (r for r in records if r['type']=='share_accepted'):
+    original=submissions[reply['fields']['id']]
+    assert records.index(original)<records.index(reply)
+    for field in ['job','generation','target_hex']:
+        assert reply['fields'][field]==original['fields'][field]
+    assert reply['fields']['target_hex']==f'{TARGET:064x}'
+    assert 100<=float(reply['fields']['response_ms'])<10000,reply
+assert any(r['type']=='target_changed' and r['fields']['target_hex']==f'{TARGET//2:064x}' for r in records)
+snapshots=[r['fields'] for r in records if r['type']=='performance_snapshot']
+assert snapshots[0]['kind']=='initial' and snapshots[-1]['kind']=='final'
+assert any(s['kind']=='periodic' for s in snapshots)
+assert sum(int(s['interval_nonces']) for s in snapshots)==int(records[-1]['fields']['nonces'])
+assert sum(int(s['interval_dispatches']) for s in snapshots)==int(records[-1]['fields']['dispatches'])
+assert int(records[-1]['fields']['submitted'])==len(submissions)
+for s in snapshots:
+    assert s['batch_size']=='64'
+    for field in ['interval_seconds','interval_gpu_seconds','interval_command_wall_seconds','interval_hashrate']:
+        assert math.isfinite(float(s[field])) and float(s[field])>=0
+    if float(s['interval_seconds'])>0:
+        assert math.isclose(float(s['interval_hashrate']),int(s['interval_nonces'])/float(s['interval_seconds']))
+assert WALLET not in log.read_text()
+print('Telemetry passed: interval snapshots, target changes, submission context, monotonic response timing, append-only schema.')

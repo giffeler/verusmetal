@@ -5,13 +5,15 @@ import Synchronization
 public struct MinerEvent: Codable, Sendable {
     public let schemaVersion: Int
     public let timestamp: Date
+    public let monotonicNanoseconds: UInt64
     public let sessionID: UUID
     public let type: String
     public let fields: [String: String]
 
     public init(sessionID: UUID, type: String, fields: [String: String] = [:]) {
-        self.schemaVersion = 1
+        self.schemaVersion = 2
         self.timestamp = Date()
+        self.monotonicNanoseconds = DispatchTime.now().uptimeNanoseconds
         self.sessionID = sessionID
         self.type = type
         self.fields = fields
@@ -33,7 +35,10 @@ public final class JSONLEventWriter: Sendable {
 
     public init(path: String?) {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+        }
         var handle: FileHandle?
         var failure: Error?
         if let path {

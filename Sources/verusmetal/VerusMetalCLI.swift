@@ -62,7 +62,7 @@ private struct Configuration: Decodable {
                      Double(s.nonces)/(ProcessInfo.processInfo.systemUptime-start)/1e6))
     }
     private static func mine(_ args: Arguments) throws {
-        try args.validate(valueOptions:["config","pool","wallet","worker","batch","duration","stats-file","stats-interval","api-bind","stop-after-shares"])
+        try args.validate(valueOptions:["config","pool","wallet","worker","batch","duration","stats-file","stats-interval","telemetry-interval","api-bind","stop-after-shares"])
         var config: Configuration?
         if let path = args.string("config") { config = try JSONDecoder().decode(Configuration.self,from:Data(contentsOf:URL(fileURLWithPath:path))) }
         guard let pool = args.string("pool",default:config?.pool), let wallet = args.string("wallet",default:config?.wallet),
@@ -72,11 +72,14 @@ private struct Configuration: Decodable {
         let duration = try args.optionalInt("duration",in:1...604800)
         let shareLimit = try args.optionalInt("stop-after-shares",in:1...1_000_000)
         let interval = try args.int("stats-interval",default:10,in:1...3600)
+        let telemetryInterval = try args.int("telemetry-interval",default:30,in:1...3600)
         let solver = try MetalVerusSolver(batchSize:args.int("batch",default:4096,in:1...32768))
         let stats = StatisticsStore(); stats.update { $0.device = solver.device.name }
         let writer = JSONLEventWriter(path:args.string("stats-file"))
         if let error = writer.failure { throw error }
-        let coordinator = MiningCoordinator(stats:stats,writer:writer)
+        let console = MiningConsole()
+        defer { console.finish() }
+        let coordinator = MiningCoordinator(stats:stats,writer:writer,batchSize:solver.batchSize,telemetryInterval:telemetryInterval,onMessage: { console.message($0) })
         let client = try VerusStratumClient(url:pool,user:wallet+"."+worker,
                                            password:ProcessInfo.processInfo.environment["VERUSMETAL_POOL_PASSWORD"] ?? "x") { [weak coordinator] event in coordinator?.handle(event) }
         coordinator.configure(client:client)
@@ -91,19 +94,25 @@ private struct Configuration: Decodable {
         defer { signals.forEach { $0.cancel() } }
         let start = ProcessInfo.processInfo.systemUptime
         var lastStatus = start
+        var lastTelemetry = start
         // A session-wide counter avoids reusing search space when a target changes.
         var nonceSequence: NonceSequence?
         var noncePrefix: [UInt8]?
         var accumulator = SearchStatisticsAccumulator()
         coordinator.start()
-        print("Mining on \(client.redactedHost), worker \(worker), device \(solver.device.name)")
+        console.message("Mining on \(client.redactedHost), worker \(worker), device \(solver.device.name)")
+        console.status(stats.snapshot())
         do {
             while !coordinator.isStopped {
                 let now = ProcessInfo.processInfo.systemUptime
                 if let duration, now-start >= Double(duration) { break }
                 if let shareLimit, stats.snapshot().accepted >= UInt64(shareLimit) { break }
+                if now-lastTelemetry >= Double(telemetryInterval) {
+                    accumulator.flush()?.record(in:stats)
+                    coordinator.recordTelemetry(); lastTelemetry = now
+                }
                 if now-lastStatus >= Double(interval) {
-                    print(MinerStatusLineFormatter.format(stats.snapshot())); lastStatus = now
+                    console.status(stats.snapshot()); lastStatus = now
                 }
                 guard let job = coordinator.nextWork() else { continue }
                 if noncePrefix != job.extraNoncePrefix {
@@ -120,13 +129,14 @@ private struct Configuration: Decodable {
                 throw VerusError.invalid("No mining work completed: \(stats.snapshot().lastError ?? "no job received")")
             }
             coordinator.finish()
-            print(MinerStatusLineFormatter.format(stats.snapshot()))
+            console.status(stats.snapshot())
+            console.finish()
             if let duration, stats.snapshot().accepted == 0 {
                 print("Timed run (\(duration)s) ended without an accepted share.")
             }
         } catch {
             accumulator.flush()?.record(in:stats); stats.update { $0.lastError = error.localizedDescription }
-            coordinator.finish(failed:true); throw error
+            coordinator.finish(failed:true); console.status(stats.snapshot()); throw error
         }
     }
 }

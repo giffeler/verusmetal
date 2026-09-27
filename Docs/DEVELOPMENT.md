@@ -9,6 +9,12 @@ Builds require the toolchain listed in the [README](../README.md).
 Release CLI under `build/miner/Build/Products/Release/verusmetal`. Open the generated
 `VerusMetal.xcodeproj` in Xcode after generation if needed. Do not commit it.
 
+`make standalone` also copies the Release executable to `Distribution/verusmetal`
+and records its SHA-256 checksum. This ignored directory is for local artifacts;
+the target does not sign with Developer ID, notarize or publish anything. The
+Metal library is embedded in the executable's `__TEXT,__metallib` section and
+loaded from memory. A missing embedded library is an error, not a file fallback.
+
 - Debug: interactive development.
 - Profile: optimized tests, testability and shader source information.
 - Release: optimized Swift whole-module compilation, no debug information and an
@@ -32,6 +38,21 @@ The unit suite covers 148 independent digests, partial GPU groups, target
 boundaries, nonce bounds, solution normalization, stale jobs and lifecycle
 handling. The integration test starts a local TCP server, checks CPU-verified
 submissions, changes jobs, disconnects, reconnects and probes the loopback API.
+To exercise terminal refreshes and width handling after the integration build:
+
+```sh
+python3 tests/test_pool_integration.py --terminal-width 120
+python3 tests/test_pool_integration.py --terminal-width 60
+```
+
+These use a pseudo-terminal, assert in-place status updates and a final newline,
+and verify that accepted shares remain in JSONL without separate terminal messages.
+The default integration invocation also checks plain redirected output. Telemetry
+checks cover snapshots independent of the terminal interval, a target change while
+a share is pending, monotonic response timing and preservation of share context.
+Unit tests cover idle intervals, partial-window dispatch accounting and appending
+schema-v2 events to an existing schema-v1 log. See [telemetry](TELEMETRY.md).
+
 Its CPU oracle shares our hash core; independent fixture digests provide separate
 algorithm evidence. Test fixtures contain a synthetic address.
 

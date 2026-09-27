@@ -36,10 +36,19 @@ final class MiningCoordinator: @unchecked Sendable {
     private var reconnectAttempt = 0
     private var reconnectGeneration: UInt64 = 0
     private var reconnectWorkItem: DispatchWorkItem?
+    private let onMessage: @Sendable (String) -> Void
+    private let batchSize: Int
+    private let telemetryInterval: Int
+    private var previousTelemetry: MinerSnapshot?
+    private var latestTarget: UInt256?
     private let reconnectDelay: TimeInterval
 
-    init(stats: StatisticsStore, writer: JSONLEventWriter, reconnectDelay: TimeInterval = 1) {
+    init(stats: StatisticsStore, writer: JSONLEventWriter, reconnectDelay: TimeInterval = 1,
+         batchSize: Int = 4096, telemetryInterval: Int = 30,
+         onMessage: @escaping @Sendable (String) -> Void = { print($0) }) {
         self.stats = stats; self.writer = writer; self.reconnectDelay = reconnectDelay
+        self.onMessage = onMessage
+        self.batchSize = batchSize; self.telemetryInterval = telemetryInterval
     }
     func configure(client: any MiningStratumClient) {
         condition.lock(); self.client = client; condition.unlock()
@@ -47,7 +56,10 @@ final class MiningCoordinator: @unchecked Sendable {
     func start() {
         condition.lock(); defer { condition.unlock() }
         guard !stopped else { return }
-        emit("session_started"); client?.connect()
+        emit("session_started", ["device": stats.snapshot().device, "batch_size": String(batchSize),
+                                 "telemetry_interval_seconds": String(telemetryInterval)])
+        recordTelemetryLocked(kind: "initial")
+        client?.connect()
     }
     func handle(_ event: StratumEvent) {
         condition.lock(); defer { condition.unlock() }
@@ -58,24 +70,33 @@ final class MiningCoordinator: @unchecked Sendable {
         case .authorized:
             authorized = true; stats.update { $0.state = job == nil ? .authorized : .mining }
             emit("authorized"); condition.broadcast()
-        case .target:
-            break
+        case .target(let target):
+            latestTarget = target
+            emit("target_changed", ["target_hex": target.bigEndianBytes.hex])
         case .job(let incoming):
             job = incoming; reconnectAttempt = 0
             stats.update { $0.jobID = incoming.id; $0.jobs += 1; if authorized { $0.state = .mining } }
-            emit("job_received", ["job":incoming.id, "generation":String(incoming.generation)])
+            emit("job_received", ["job":incoming.id, "generation":String(incoming.generation),
+                                  "target_hex":incoming.target.bigEndianBytes.hex,
+                                  "clean_jobs":String(incoming.cleanJobs)])
             condition.broadcast()
-        case .shareResult(let id, let accepted, let message):
+        case .shareSubmitted(let share):
+            stats.update { $0.submitted += 1 }
+            emit("share_submitted", share.telemetryFields)
+        case .shareResult(let share, let accepted, let message, let responseMilliseconds):
             stats.update { if accepted { $0.accepted += 1 } else { $0.rejected += 1; $0.lastError = message } }
-            emit(accepted ? "share_accepted" : "share_rejected", ["id":String(id)])
-            print(accepted ? "Share accepted (\(id))" : "Share rejected (\(id))")
+            var fields = share.telemetryFields
+            fields["response_ms"] = String(responseMilliseconds)
+            if let message { fields["reason"] = message }
+            emit(accepted ? "share_accepted" : "share_rejected", fields)
+            if !accepted { onMessage("Share rejected (\(share.id))") }
             condition.broadcast()
         case .protocolError(let reason):
             stats.update { $0.lastError = reason }; emit("protocol_error", ["reason":reason])
         case .disconnected(let reason):
-            job = nil; authorized = false; reconnectGeneration &+= 1
+            job = nil; latestTarget = nil; authorized = false; reconnectGeneration &+= 1
             stats.update { $0.state = .disconnected; $0.lastError = reason }
-            print("Disconnected: \(reason)")
+            onMessage("Disconnected: \(reason)")
             emit("disconnected", ["reason":reason]); condition.broadcast()
             let token = reconnectGeneration
             let delay = min(30, reconnectDelay*pow(2,Double(min(reconnectAttempt,5))))
@@ -116,8 +137,7 @@ final class MiningCoordinator: @unchecked Sendable {
         guard let client else { stats.update { $0.stale += 1 }; return }
         while isCurrent(work) {
             do {
-                let id = try client.submit(job: work, nonce: candidate.nonce)
-                stats.update { $0.submitted += 1 }; emit("share_submitted", ["id":String(id)])
+                _ = try client.submit(job: work, nonce: candidate.nonce)
                 return
             } catch StratumError.notReady { break }
             catch StratumError.tooManyPendingShares {
@@ -138,11 +158,21 @@ final class MiningCoordinator: @unchecked Sendable {
     }
     func finish(failed: Bool = false) {
         stop(); stats.update { $0.state = failed ? .failed : .stopped }
-        let s = stats.snapshot()
-        emit("session_ended", ["nonces":String(s.nonces),"accepted":String(s.accepted),
-                               "rejected":String(s.rejected),"submitted":String(s.submitted),
-                               "unresolved":String(s.submitted >= s.accepted+s.rejected ? s.submitted-s.accepted-s.rejected : 0),
-                               "effective_hashrate":String(s.effectiveHashrate)])
+        recordTelemetry(kind: "final")
+        emit("session_ended", stats.snapshot().telemetryFields(since: nil, batchSize: batchSize))
+    }
+    func recordTelemetry(kind: String = "periodic") {
+        condition.lock(); defer { condition.unlock() }
+        recordTelemetryLocked(kind: kind)
+    }
+    private func recordTelemetryLocked(kind: String) {
+        let snapshot = stats.snapshot()
+        var fields = snapshot.telemetryFields(since: previousTelemetry, batchSize: batchSize)
+        fields["kind"] = kind
+        if let job { fields["job"] = job.id; fields["generation"] = String(job.generation) }
+        if let latestTarget { fields["target_hex"] = latestTarget.bigEndianBytes.hex }
+        writer.write(MinerEvent(sessionID: snapshot.sessionID, type: "performance_snapshot", fields: fields))
+        previousTelemetry = snapshot
     }
     private func emit(_ type: String, _ fields: [String:String] = [:]) {
         writer.write(MinerEvent(sessionID: stats.snapshot().sessionID,type:type,fields:fields))

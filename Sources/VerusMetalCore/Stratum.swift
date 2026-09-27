@@ -1,13 +1,29 @@
 import Foundation
 import Network
 
+public struct ShareMetadata: Sendable {
+    public let id: Int
+    public let jobID: String
+    public let generation: UInt64
+    public let target: UInt256
+
+    public init(id: Int, job: VerusStratumJob) {
+        self.id = id; jobID = job.id; generation = job.generation; target = job.target
+    }
+    public var telemetryFields: [String: String] {
+        ["id": String(id), "job": jobID, "generation": String(generation),
+         "target_hex": target.bigEndianBytes.hex]
+    }
+}
+
 public enum StratumEvent: Sendable {
     case connected
     case authorized
     case disconnected(String)
     case target(UInt256)
     case job(VerusStratumJob)
-    case shareResult(id: Int, accepted: Bool, message: String?)
+    case shareSubmitted(ShareMetadata)
+    case shareResult(share: ShareMetadata, accepted: Bool, message: String?, responseMilliseconds: Double)
     case protocolError(String)
 }
 
@@ -55,7 +71,11 @@ public final class VerusStratumClient: @unchecked Sendable {
     private var lastJobParams: [Any]?
     private var lastReceived = Date()
     private var receivedJob = false
-    private var pendingShareIDs = Set<Int>()
+    private struct PendingShare {
+        let metadata: ShareMetadata
+        let sentAt: UInt64
+    }
+    private var pendingShares: [Int: PendingShare] = [:]
     private var ready = false
     private var authorized = false
     private let maximumBufferedBytes = 1_048_576
@@ -99,7 +119,7 @@ public final class VerusStratumClient: @unchecked Sendable {
             self.lastReceived = Date()
             self.receivedJob = false
             self.authorized = false
-            self.pendingShareIDs.removeAll(keepingCapacity: true)
+            self.pendingShares.removeAll(keepingCapacity: true)
             self.generation &+= 1
             let connection = NWConnection(to: self.endpoint, using: self.parameters)
             self.connection = connection
@@ -124,7 +144,7 @@ public final class VerusStratumClient: @unchecked Sendable {
             self.cancelCurrentConnection()
             self.buffer.removeAll(keepingCapacity: true)
             self.authorized = false
-            self.pendingShareIDs.removeAll(keepingCapacity: true)
+            self.pendingShares.removeAll(keepingCapacity: true)
             self.generation &+= 1
         }
     }
@@ -134,14 +154,18 @@ public final class VerusStratumClient: @unchecked Sendable {
         return try onQueue {
             guard ready, authorized, connection != nil, job.generation == generation,
                   job.extraNoncePrefix == extraNoncePrefix else { throw StratumError.notReady }
-            guard pendingShareIDs.count < 1024 else { throw StratumError.tooManyPendingShares(pendingShareIDs.count) }
+            guard pendingShares.count < 1024 else { throw StratumError.tooManyPendingShares(pendingShares.count) }
             let parameters = try job.submission(user: user, nonce: nonce)
-            let id = nextID; nextID += 1; pendingShareIDs.insert(id)
+            let id = nextID; nextID += 1
+            let metadata = ShareMetadata(id: id, job: job)
+            // Emit submission before the response can be processed on this queue.
+            handler(.shareSubmitted(metadata))
+            pendingShares[id] = PendingShare(metadata: metadata, sentAt: DispatchTime.now().uptimeNanoseconds)
             send(id: id, method: "mining.submit", params: parameters)
             if let candidate = connection {
                 queue.asyncAfter(deadline: .now()+30) { [weak self, weak candidate] in
                     guard let self, let candidate, self.connection === candidate,
-                          self.pendingShareIDs.contains(id) else { return }
+                          self.pendingShares[id] != nil else { return }
                     self.reportDisconnect("share response timed out", connection: candidate)
                 }
             }
@@ -272,10 +296,12 @@ public final class VerusStratumClient: @unchecked Sendable {
             let accepted = (message["result"] as? Bool) ?? false
             if accepted && !hasError { authorized = true; handler(.authorized) }
             else { throw StratumError.invalidJob("pool authorization rejected") }
-        } else if pendingShareIDs.remove(id) != nil {
+        } else if let pending = pendingShares.removeValue(forKey: id) {
             let accepted = ((message["result"] as? Bool) ?? false) && !hasError
-            handler(.shareResult(id: id, accepted: accepted,
-                message: accepted ? nil : Self.shareRejectionDiagnostic(message["error"])))
+            let elapsed = DispatchTime.now().uptimeNanoseconds - pending.sentAt
+            handler(.shareResult(share: pending.metadata, accepted: accepted,
+                message: accepted ? nil : Self.shareRejectionDiagnostic(message["error"]),
+                responseMilliseconds: Double(elapsed) / 1_000_000))
         }
     }
 
@@ -330,7 +356,7 @@ public final class VerusStratumClient: @unchecked Sendable {
         guard connection === candidate else { return }
         cancelCurrentConnection()
         buffer.removeAll(keepingCapacity: true)
-        pendingShareIDs.removeAll(keepingCapacity: true)
+        pendingShares.removeAll(keepingCapacity: true)
         generation &+= 1
         handler(.disconnected(message))
     }

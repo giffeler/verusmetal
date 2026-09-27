@@ -3,6 +3,7 @@ import VerusMetalCore
 
 struct SearchStatisticsSample {
     let nonces: Int
+    let dispatches: Int
     let gpuSeconds: Double
     /// Increment of the session-wide union; never use this as the denominator
     /// for this sample's full nonce count when commands cross window boundaries.
@@ -12,7 +13,7 @@ struct SearchStatisticsSample {
     let hashrateWindowSeconds: Double
 
     func record(in stats: StatisticsStore) {
-        stats.recordBatch(nonces: nonces, gpuSeconds: gpuSeconds,
+        stats.recordBatch(nonces: nonces, dispatches: dispatches, gpuSeconds: gpuSeconds,
                           wallSeconds: activeSearchSeconds, hashrateWindowSeconds: hashrateWindowSeconds)
     }
 
@@ -66,6 +67,7 @@ struct SearchStatisticsAccumulator {
         accountedWallEnd = cursor
         let sample = SearchStatisticsSample(
             nonces: nonces,
+            dispatches: batchCount,
             gpuSeconds: gpuSeconds,
             activeSearchSeconds: activeSearchSeconds,
             hashrateWindowSeconds: hashrateWindowSeconds)

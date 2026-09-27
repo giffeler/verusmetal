@@ -33,6 +33,35 @@ make miner
 outputs are ignored by Git. The Release executable embeds its Metal library and
 can run without a sibling `.metallib`. It is not a signed/notarized distribution.
 
+## Standalone executable
+
+```sh
+make standalone
+```
+
+This places the Release executable at `Distribution/verusmetal` and writes
+`Distribution/verusmetal.sha256`. Copy the executable to any directory on the
+supported Mac. Mining needs no external `.metal`, `.metallib`, configuration file
+or project sources when all settings are supplied as arguments. The operating
+system's Metal and Swift libraries are still required; Xcode is needed to build,
+not to run the executable. This local build is not Developer ID signed or notarized.
+
+From the directory containing the executable:
+
+```sh
+caffeinate -i ./verusmetal mine \
+  --pool stratum+tcp://eu.luckpool.net:3956 \
+  --wallet YOUR_VERUS_TRANSPARENT_ADDRESS \
+  --worker m4 \
+  --batch 4096 \
+  --stats-file verusmetal.jsonl \
+  --stats-interval 240
+```
+
+`caffeinate -i` prevents idle system sleep while the miner runs. Stop with Ctrl-C.
+VerusMetal currently has no `--profile` or `--prebuild` options. It uses the
+optimized GPU kernel directly and does not prebuild a mining dataset.
+
 ## Mining
 
 For the tested LuckPool endpoint, create a local configuration:
@@ -82,8 +111,18 @@ These checks do not contact an external mining pool. CPU/GPU agreement alone is
 not an independent oracle; reference-vector provenance is recorded with the
 fixtures. See the [development guide](Docs/DEVELOPMENT.md).
 
-`--stats-file PATH` writes session-tagged JSONL events. `--stats-interval SECONDS`
-controls terminal updates. `--api-bind 127.0.0.1:4079` enables a loopback-only API
+`--stats-file PATH` writes session-tagged JSONL events, with performance snapshots
+at startup, shutdown and every 30 seconds (`--telemetry-interval SECONDS`). Events
+include millisecond timestamps, monotonic timing, share targets and response times.
+Existing logs are appended without rewriting older sessions.
+[Telemetry fields and interpretation](Docs/TELEMETRY.md).
+
+`--stats-interval SECONDS`
+controls terminal updates. In an interactive terminal, status refreshes in place
+on one line and adapts to the available width. Redirected output uses plain lines.
+Accepted shares update the counters and JSONL log without a separate terminal
+message. Rejections and connection diagnostics remain visible, and shutdown ends
+the status line with a newline. `--api-bind 127.0.0.1:4079` enables a loopback-only API
 with `/v1/status`, `/v1/devices`, `/metrics` and `/healthz`. Status includes hash
 rates, share counters, reconnects and thermal state. Health describes process
 state; pool acknowledgements establish share acceptance. Unacknowledged shares
