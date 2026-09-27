@@ -1,0 +1,11 @@
+/build/
+/Config/local.json
+/Config/*.local.json
+/Distribution/
+/DerivedData/
+*.xcuserstate
+xcuserdata/
+__pycache__/
+.DS_Store
+/VerusMetal.xcodeproj/
+*.py[cod]

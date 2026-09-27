@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-27",
+  "endpoint": "stratum+tcp://eu.luckpool.net:3956",
+  "worker": "m4",
+  "status": "live_pool_accepted",
+  "sessionID": "0C277DC0-B112-4AA0-8BE4-DE2959FC6BBD",
+  "durationSecondsApprox": 115,
+  "nonces": 118665216,
+  "submitted": 2,
+  "accepted": 2,
+  "rejected": 0,
+  "unresolved": 0,
+  "effectiveHashesPerSecond": 1037847.9344283192,
+  "tests": {
+    "xctest": 12,
+    "independentVectors": 148,
+    "localIntegration": "passed"
+  },
+  "fileSHA256": {
+    "Sources/VerusMetalCore/VerusJob.swift": "291f5136dbf1321501d5f6864d49d1df8b178ef1ca1e743e28355dd488bbe628",
+    "tests/VerusMetalTests/VerusMetalTests.swift": "f8763b20e8fb7aa91f8da5ecfbfd0cf730030aea18151f63b701c7902e0ceec7",
+    "tests/test_pool_integration.py": "c5aca14c328522b6a5e3bdc8584ba1112e94d4e268e0fdef01d51a67d83e687d",
+    "build/miner/Build/Products/Release/verusmetal": "3428ec5f284d114893125618c6a5aaa95f0c5802c796df6d570ab505f073ea8a"
+  }
+}

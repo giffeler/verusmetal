@@ -1,0 +1,89 @@
+{
+  "Sources/VerusMetalCore/UInt256.swift": {
+    "source": "Sources/MetalErgoCore/UInt256.swift",
+    "originalSHA256": "f768edf1b35415181b57a77504e65b08a49d58f63e8c02a7d1caf945f9ccdfd4",
+    "adaptedSHA256": "f768edf1b35415181b57a77504e65b08a49d58f63e8c02a7d1caf945f9ccdfd4",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/Stratum.swift": {
+    "source": "Sources/MetalErgoCore/Stratum.swift",
+    "originalSHA256": "57fa65bfdc5db6e916b109e1ee2be7a6d9f972729a909a4f553788aef9570dae",
+    "adaptedSHA256": "112e2d8c3e7308ab15226d0d89de68deaa31e4154ceec2cc66ddf4bb1b48902c",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/Statistics.swift": {
+    "source": "Sources/MetalErgoCore/Statistics.swift",
+    "originalSHA256": "7898a578c99f4a57a5c5a4fe47f45fa0035da184c316207f1979afae80d86c25",
+    "adaptedSHA256": "6ad071c70de47dec593bb8cd1fb277c75c73c2752ef761607156c3e76e3c281e",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/StatisticsHTTPServer.swift": {
+    "source": "Sources/MetalErgoCore/StatisticsHTTPServer.swift",
+    "originalSHA256": "3c5e5031cc41fd3b63e9bef0b41b3f68c408e2d76c5a3f3479648c4b7ebcd9b8",
+    "adaptedSHA256": "ecc94205ae76e7a150f6ffd579222025d3a8161f7b329652e9dafac0472b302f",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/MinerStatusLineFormatter.swift": {
+    "source": "Sources/MetalErgoCore/MinerStatusLineFormatter.swift",
+    "originalSHA256": "82213cd9d90942717d848342a5ccd6b2ef239b10c70780dfcfd76ad8ef40e298",
+    "adaptedSHA256": "265eff7cedf58ac561de73e301a9ccdd0e1127cb257b6463edb19dd87d11f466",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/verusmetal/Arguments.swift": {
+    "source": "Sources/ergometal/Arguments.swift",
+    "originalSHA256": "593b68f457a2c399935ac95548e1fab7bac48da55c45764d015e79813d856b82",
+    "adaptedSHA256": "951ce91920b048176a27592ae046fe306b799312bc9afa3825bb0872015d848f",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/verusmetal/SearchStatistics.swift": {
+    "source": "Sources/ergometal/SearchStatistics.swift",
+    "originalSHA256": "d170a5042c8dd89d4fde4a7781a87acea57d20899b830fde85e32cdeded9257e",
+    "adaptedSHA256": "6000bb44f6adec313022d2992e9f75a13e4d7836883a7b5562bbe1cd77865bce",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/verusmetal/MiningCoordinator.swift": {
+    "source": "Sources/ergometal/MiningCoordinator.swift",
+    "originalSHA256": "73a516c645d5057839a2f55b7143cd6e4b9127bf94473222146884e13626167a",
+    "adaptedSHA256": "f0eb4f91c7c4b1618d94bb44fa746feee3d91b5d422c732cfcb25b03241c7293",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "project.yml": {
+    "source": "project.yml",
+    "originalSHA256": "b503c92d406d3ed552b4a71c623baf1d16d84941d9baaa9eec04909132d6020d",
+    "adaptedSHA256": "61826dc5da9cc8ae8181873ecf803d5bf043e2c48628d4f0a388f6196924c0f8",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "LICENSE": {
+    "source": "LICENSE",
+    "originalSHA256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "adaptedSHA256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/MetalLibrary.swift": {
+    "source": "Sources/MetalErgoCore/MetalSolver.swift",
+    "portion": "embeddedMetalLibraryData",
+    "originalSHA256": "9e5bce3d073b1987744153d542e277bb7619f3373711f8a8417db4b22070efc8",
+    "adaptedSHA256": "abaf1f382a5a61ebcda3fbfe20b5b8b8a7315a36498f8edc8871df41fb5a68d3",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/Hex.swift": {
+    "source": "Sources/MetalErgoCore/Blake2b.swift",
+    "portion": "hexadecimal array extension",
+    "originalSHA256": "30278e34c3c1b50bb3ef673edac8e4e36e5ea9e5367c0858ba648c78a67636a8",
+    "adaptedSHA256": "fe3b04fe9c730c2493580b23d0c62597ad469aeb917d2b485259c12c06ee3293",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "AGENTS.md": {
+    "source": "AGENTS.md",
+    "originalSHA256": "4e2c18d96df2fda8311a20d0b8afe69c4d5db5c4af85d631045d0372b17bb211",
+    "adaptedSHA256": "c86cc2cea55975f50c4a8961be837542c3afc9ae2660e3b5ef2c8787efb9db00",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "Sources/VerusMetalCore/VerusJob.swift": {
+    "source": "Sources/MetalErgoCore/ErgoAddress.swift",
+    "portion": "Base58 decoding adapted for the Verus checksum and address versions; job logic written separately",
+    "originalSHA256": "595139d1513afd2984c474f6e8907de7480402b4e17b354c54b7624cf28c6633",
+    "adaptedSHA256": "291f5136dbf1321501d5f6864d49d1df8b178ef1ca1e743e28355dd488bbe628",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "pool": "stratum+tcp://eu.luckpool.net:3956",
+  "wallet": "YOUR_VERUS_TRANSPARENT_ADDRESS",
+  "worker": "m4"
+}

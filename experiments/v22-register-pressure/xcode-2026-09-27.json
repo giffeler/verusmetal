@@ -1,0 +1,176 @@
+{
+  "device": "Apple M4",
+  "mode": "Serial / Medium",
+  "count": 4096,
+  "inputBytes": 64,
+  "groupSize": 128,
+  "pipelineThreadLimit": 128,
+  "firstCapture": "run-E4F0151E-4B45-4DB2-8CF6-05BFE237FD8D/register-study.gputrace",
+  "followupCapture": "run-B447204A-1CB8-4D03-BA3A-F7E7A19DBD33/register-study.gputrace",
+  "pendingCapture": "run-879C39E9-2973-4EF6-88BF-4B59A6FBFE4A/register-study.gputrace",
+  "fields": [
+    "Temporary Registers",
+    "Allocated Registers",
+    "High Register",
+    "Spilled Bytes",
+    "Kernel Occupancy percent",
+    "Static ALU instructions"
+  ],
+  "first": {
+    "baseline": [
+      96,
+      192,
+      192,
+      32,
+      9.18,
+      2642
+    ],
+    "e1_finish": [
+      96,
+      192,
+      192,
+      32,
+      9.16,
+      2642
+    ],
+    "e1_parity": [
+      96,
+      192,
+      192,
+      32,
+      9.07,
+      2642
+    ],
+    "e1_selector": [
+      96,
+      192,
+      192,
+      32,
+      9.13,
+      2635
+    ],
+    "e2_late": [
+      96,
+      192,
+      192,
+      32,
+      9.09,
+      2827
+    ],
+    "e2_split": [
+      96,
+      192,
+      192,
+      32,
+      9.15,
+      2670
+    ],
+    "e3_halves": [
+      96,
+      192,
+      192,
+      32,
+      9.15,
+      2642
+    ],
+    "e4_reload": [
+      96,
+      192,
+      192,
+      32,
+      9.13,
+      2647
+    ]
+  },
+  "followup": {
+    "baseline": [
+      96,
+      192,
+      192,
+      32,
+      9.14,
+      2642
+    ],
+    "e2_aes_key": [
+      96,
+      192,
+      192,
+      48,
+      9.09,
+      2642
+    ],
+    "e5_product": [
+      96,
+      192,
+      192,
+      32,
+      9.03,
+      2642
+    ],
+    "e5_rounds": [
+      96,
+      192,
+      192,
+      32,
+      9.2,
+      2642
+    ],
+    "e5_aes": [
+      60,
+      119,
+      119,
+      0,
+      10.03,
+      2720
+    ],
+    "e1_dispatch": [
+      96,
+      192,
+      192,
+      32,
+      9.12,
+      2642
+    ]
+  },
+  "unread": [],
+  "unreadReason": "",
+  "followupDynamicALUInstructions": {
+    "baseline": 5679804896,
+    "e5_aes": 8277166416
+  },
+  "allReadKernelInvocations": 4096,
+  "evidenceDirectory": "build/v22/register-study/xcode",
+  "finalCapture": "run-2FAB622F-0D76-4F2D-B225-28574C1A4DC0/register-study.gputrace",
+  "finalEvidenceDirectory": "build/v22/instruction-study/xcode",
+  "final": {
+    "baseline": [
+      96,
+      192,
+      192,
+      32,
+      9.14,
+      2642
+    ],
+    "e5_aes2": [
+      61,
+      122,
+      122,
+      0,
+      9.69,
+      2582
+    ],
+    "e4_snapshot": [
+      96,
+      192,
+      192,
+      16,
+      9.18,
+      2642
+    ]
+  },
+  "finalDynamicALUInstructions": {
+    "baseline": 5683897376,
+    "e5_aes2": 6488627840,
+    "e4_snapshot": 5652606032
+  }
+}

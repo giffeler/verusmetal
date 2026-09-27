@@ -1,0 +1,90 @@
+name: VerusMetal
+configs:
+  Debug: debug
+  Profile: release
+  Release: release
+options:
+  bundleIdPrefix: dev.verusmetal
+  deploymentTarget:
+    macOS: "27.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    ARCHS: arm64
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "27.0"
+    CODE_SIGNING_ALLOWED: NO
+    CLANG_CXX_LANGUAGE_STANDARD: c++20
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    MTL_LANGUAGE_REVISION: Metal40
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
+    Release:
+      ENABLE_TESTABILITY: NO
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
+      DEBUG_INFORMATION_FORMAT: ""
+      GCC_GENERATE_DEBUGGING_SYMBOLS: NO
+      MTL_ENABLE_DEBUG_INFO: NO
+      SWIFT_COMPILATION_MODE: wholemodule
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+    Profile:
+      ENABLE_TESTABILITY: YES
+      DEBUG_INFORMATION_FORMAT: dwarf
+      MTL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+targets:
+  VerusMetalCore:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: Sources/VerusMetalCore
+      - path: src/v22/cpu.cpp
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_OBJC_BRIDGING_HEADER: $(SRCROOT)/Sources/VerusMetalCore/Bridge.h
+        OTHER_CPLUSPLUSFLAGS: "$(inherited) -mcpu=native"
+  verusmetal:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/verusmetal
+    dependencies:
+      - target: VerusMetalCore
+    settings:
+      base:
+        PRODUCT_NAME: verusmetal
+        GENERATE_INFOPLIST_FILE: YES
+        OTHER_LDFLAGS: "$(inherited) -lc++ -Wl,-sectcreate,__TEXT,__metallib,$(TARGET_BUILD_DIR)/default.metallib"
+  VerusMetalTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: tests/VerusMetalTests
+      - path: Sources/verusmetal/Arguments.swift
+      - path: Sources/verusmetal/MiningCoordinator.swift
+      - path: Sources/verusmetal/SearchStatistics.swift
+      - path: tests/v22-vectors.json
+        buildPhase: resources
+    dependencies:
+      - target: VerusMetalCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        OTHER_LDFLAGS: "$(inherited) -lc++ -Wl,-sectcreate,__TEXT,__metallib,$(TARGET_BUILD_DIR)/default.metallib"
+schemes:
+  VerusMetal:
+    build:
+      targets:
+        verusmetal: all
+        VerusMetalTests: [test]
+    test:
+      config: Profile
+      targets:
+        - VerusMetalTests
+    run:
+      config: Debug
+      executable: verusmetal

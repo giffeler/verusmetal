@@ -1,0 +1,4 @@
+# Preserve raw mining evidence byte-for-byte, including terminal whitespace.
+experiments/mining/**/run.log -text -whitespace
+experiments/mining/**/events.jsonl -text
+experiments/mining/**/summary.json -text
