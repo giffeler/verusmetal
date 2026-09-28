@@ -21,17 +21,18 @@ Mining uses the system default Metal device; there is no device-selection option
 ## Benchmark
 
 ```sh
-verusmetal benchmark --duration 10 --batch-nonces 4096 --json
+verusmetal benchmark --duration 10 --batch-nonces 32768 --json
 ```
 
 Measures full VerusHash v2.2 on a synthetic 1,487-byte input, without contacting a
-pool. At least 0.75 seconds of warmup precedes the timed loop. A dispatch already
+pool. It uses the same per-job preparation and GPU nonce path as mining, with
+the nonce wholly in the final 15-byte tail. At least 0.75 seconds of warmup precedes the timed loop. A dispatch already
 in progress finishes before the duration limit is applied.
 
 | Option | Default | Accepted values |
 | --- | --- | --- |
 | `--duration SECONDS` | `10` | Integers from 1 to 3,600 |
-| `--batch-nonces N` | `4096` | Integers from 1 to 32,768 |
+| `--batch-nonces N` | `32768` | Integers from 1 to 32,768 |
 | `--batch N` | Same setting | Compatibility alias; do not combine with `--batch-nonces` |
 | `--json` | Off | Flag; writes one JSON object instead of text |
 
@@ -65,7 +66,7 @@ source, not embedded in the standalone executable.
 ## Mine
 
 ```sh
-verusmetal mine --config Config/local.json --batch-nonces 4096 \
+verusmetal mine --config Config/local.json --batch-nonces 32768 \
   --stats-file build/mining.jsonl
 ```
 
@@ -79,7 +80,7 @@ override the matching fields. Other settings are CLI options only.
 | `--pool URL` | Configured pool | `stratum+ssl://`, `stratum+tls://` or explicitly selected `stratum+tcp://`; host and port required |
 | `--wallet ADDRESS` | Configured wallet | Valid Verus transparent address |
 | `--worker NAME` | `m4` | 1–64 ASCII letters or digits |
-| `--batch-nonces N` | `4096` | 1–32,768 nonces per dispatch |
+| `--batch-nonces N` | `32768` | 1–32,768 nonces per dispatch |
 | `--batch N` | Same setting | Compatibility alias; do not supply both names |
 | `--duration SECONDS` | Unlimited | Integer from 1 to 604,800 |
 | `--stop-after-shares N` | Unlimited | Integer from 1 to 1,000,000 accepted shares |
@@ -104,8 +105,19 @@ automatically to plaintext. The status API is opt-in and loopback-only. See
 ## Execution limits
 
 The current solver uses one synchronous GPU command at a time, a fixed
-128-thread group and the optimized full-hash kernel. It has no CPU mining mode,
-performance profiles, autotuning, selectable kernels or prebuilt mining dataset.
+128-thread group and the cached nonce kernel. At the default batch of 32,768,
+explicit GPU buffers occupy 269,624,032 bytes (257.134 MiB): 256 MiB of sparse
+per-nonce key-write slots, 1 MiB of digests, 128 KiB of candidate flags, an
+8,896-byte prepared key/seed state and a 32-byte target. Threadgroup masks add
+8 KiB per resident group. No per-nonce input buffer or pristine-key copy is made.
+Job/prefix/input/layout changes invalidate preparation. For generic API inputs
+whose nonce overlaps a full 32-byte block, the solver uses full hashing and
+reports `usesCachedHash == false`; that path also allocates input copies and
+8,896 workspace bytes per nonce. Zero-byte nonce fields can always use caching.
+
+The solver keeps command buffers synchronous; nonce allocation, stale-job
+rejection and statistics accounting retain their existing semantics. It has no CPU
+mining mode, performance profiles, autotuning, selectable kernels or prebuilt mining dataset.
 The benchmark has JSON output; the mining command uses terminal status and the
 separate JSONL telemetry stream. Hardware temperatures in degrees are not exposed;
 telemetry reports the macOS thermal state and Low Power Mode.

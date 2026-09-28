@@ -6,27 +6,63 @@ enum : U32 { keyVectors = 552, workspaceVectors = 556 };
 struct Workspace {
     VM_DEVICE V *base;
     U32 stride;
-    V get(U32 index) const { return base[index * stride]; }
-    void put(U32 index, V value) const { base[index * stride] = value; }
-    V message(U32 index) const {
+    VM_INLINE V get(U32 index) const { return base[index * stride]; }
+    VM_INLINE void put(U32 index, V value) const { base[index * stride] = value; }
+    VM_INLINE V message(U32 index) const {
         V v = get(keyVectors + index);
         return index < 2 ? v ^ get(keyVectors + index + 2) : v;
     }
 };
 
-inline void interleave(VM_THREAD V &a, VM_THREAD V &b) {
+// Only indices 0...511 can be mutated by mix. Higher reads (through 551)
+// always use the pristine key. Each lane owns its mask and sparse device slots.
+struct OverlayWorkspace {
+    VM_DEVICE const V *pristine;
+    VM_DEVICE V *writes;
+    VM_MASK U32 *dirty;
+    VM_THREAD V *seeds;
+    U32 stride;
+    U32 maskStride;
+    VM_INLINE void reset() const {
+        for (U32 i = 0; i != 16; ++i) dirty[i*maskStride] = 0;
+        for (U32 i = 0; i != 4; ++i) seeds[i] = pristine[keyVectors+i];
+    }
+    VM_INLINE V get(U32 index) const {
+        if (index >= keyVectors) return seeds[index-keyVectors];
+        if (index < 512 && (dirty[(index/32)*maskStride] & (1u << (index&31))))
+            return writes[index*stride];
+        return pristine[index];
+    }
+    VM_INLINE void put(U32 index, V value) const {
+        if (index >= keyVectors) { seeds[index-keyVectors] = value; return; }
+        writes[index*stride] = value;
+        dirty[(index/32)*maskStride] |= 1u << (index&31);
+    }
+    VM_INLINE V message(U32 index) const {
+        V v = get(keyVectors+index);
+        return index < 2 ? v ^ get(keyVectors+index+2) : v;
+    }
+};
+
+VM_INLINE bool canCacheNonce(U32 size, U32 nonceOffset, U32 nonceBytes) {
+    return nonceBytes <= 8 && nonceOffset <= size && nonceBytes <= size-nonceOffset
+        && (nonceBytes == 0 || nonceOffset >= (size/32)*32);
+}
+
+VM_INLINE void interleave(VM_THREAD V &a, VM_THREAD V &b) {
     V next{a.x, b.x, a.y, b.y};
     b = V{a.z, b.z, a.w, b.w};
     a = next;
 }
-inline void keyedPair(VM_THREAD V &a, VM_THREAD V &b, Workspace key, U32 offset) {
+template<typename Work>
+VM_INLINE void keyedPair(VM_THREAD V &a, VM_THREAD V &b, Work key, U32 offset) {
     a = aes(a, key.get(offset));
     b = aes(b, key.get(offset + 1));
     a = aes(a, key.get(offset + 2));
     b = aes(b, key.get(offset + 3));
     interleave(a, b);
 }
-inline void haraka256(VM_THREAD V &a, VM_THREAD V &b) {
+VM_INLINE void haraka256(VM_THREAD V &a, VM_THREAD V &b) {
     V originalA = a, originalB = b;
     for (U32 r = 0; r != 5; ++r) {
         a = aes(a, RC[r*4]); b = aes(b, RC[r*4+1]);
@@ -36,8 +72,8 @@ inline void haraka256(VM_THREAD V &a, VM_THREAD V &b) {
     a ^= originalA; b ^= originalB;
 }
 
-template<bool keyed>
-inline void haraka512(VM_THREAD V &a, VM_THREAD V &b, V c, V d, Workspace key, U32 offset) {
+template<bool keyed, typename Work>
+VM_INLINE void haraka512(VM_THREAD V &a, VM_THREAD V &b, V c, V d, Work key, U32 offset) {
     V feedA{a.z, a.w, b.z, b.w}, feedB{c.x, c.y, d.x, d.y};
     for (U32 r = 0; r != 5; ++r) {
         for (U32 pass = 0; pass != 2; ++pass) {
@@ -58,12 +94,12 @@ inline void haraka512(VM_THREAD V &a, VM_THREAD V &b, V c, V d, Workspace key, U
     a = outA ^ feedA;
 }
 
-inline V load16(VM_DEVICE const unsigned char *input) {
+VM_INLINE V load16(VM_DEVICE const unsigned char *input) {
     V value{};
     for (U32 i = 0; i != 16; ++i) value[i/4] |= U32(input[i]) << (8*(i&3));
     return value;
 }
-inline void absorb(VM_DEVICE const unsigned char *input, U32 size, Workspace work) {
+VM_INLINE void absorb(VM_DEVICE const unsigned char *input, U32 size, Workspace work) {
     V a{}, b{};
     U32 offset = 0;
     while (size - offset >= 32) {
@@ -82,7 +118,7 @@ inline void absorb(VM_DEVICE const unsigned char *input, U32 size, Workspace wor
     work.put(keyVectors, a); work.put(keyVectors+1, b);
     work.put(keyVectors+2, c); work.put(keyVectors+3, d);
 }
-inline void expandKey(Workspace work) {
+VM_INLINE void expandKey(Workspace work) {
     V a = work.get(keyVectors), b = work.get(keyVectors+1);
     for (U32 k = 0; k != keyVectors; k += 2) {
         haraka256(a, b);
@@ -90,7 +126,8 @@ inline void expandKey(Workspace work) {
     }
 }
 
-inline U64 mix(Workspace work) {
+template<typename Work>
+VM_INLINE U64 mix(Work work) {
     V acc = work.get(513);
     for (U32 step = 0; step != 32; ++step) {
         U64 selector = low(acc);
@@ -183,7 +220,8 @@ inline U64 mix(Workspace work) {
     return reduce(acc);
 }
 
-inline void finish(Workspace work, U32 tail, U64 intermediate, VM_DEVICE V *output) {
+template<typename Work>
+VM_INLINE void finish(Work work, U32 tail, U64 intermediate, VM_DEVICE V *output) {
     V a = work.get(keyVectors), b = work.get(keyVectors+1);
     V c = work.get(keyVectors+2), d = work.get(keyVectors+3);
     for (U32 i = tail; i < 32; ++i) {
@@ -196,9 +234,30 @@ inline void finish(Workspace work, U32 tail, U64 intermediate, VM_DEVICE V *outp
     output[0] = a; output[1] = b;
 }
 
-inline void hash(VM_DEVICE const unsigned char *input, U32 size, Workspace work, VM_DEVICE V *output) {
-    absorb(input, size, work);
-    expandKey(work);
+VM_INLINE void prepare(VM_DEVICE const unsigned char *input, U32 size, Workspace pristine) {
+    absorb(input, size, pristine);
+    expandKey(pristine);
+}
+
+// Caller supplies a freshly prepared workspace or resets an overlay first.
+// Nonce offsets are absolute input offsets; canCacheNonce is checked by callers.
+template<typename Work>
+VM_INLINE void finishNonce(Work work, U32 size, U32 nonceOffset, U32 nonceBytes,
+                           U64 nonce, VM_DEVICE V *output) {
+    for (U32 i = 0; i < nonceBytes; ++i) {
+        U32 byteOffset = nonceOffset - (size/32)*32 + i;
+        U32 index = keyVectors + 2 + byteOffset/16;
+        V v = work.get(index);
+        U32 word = (byteOffset/4)&3, shift = 8*(byteOffset&3);
+        v[word] = (v[word] & ~(255u << shift)) | (U32((nonce >> (8*i)) & 255) << shift);
+        work.put(index, v);
+    }
     U64 intermediate = mix(work);
+    // Finalization must read the mutated workspace, including aliased stores.
     finish(work, size&31, intermediate, output);
+}
+
+VM_INLINE void hash(VM_DEVICE const unsigned char *input, U32 size, Workspace work, VM_DEVICE V *output) {
+    prepare(input, size, work);
+    finishNonce(work, size, 0, 0, 0, output);
 }

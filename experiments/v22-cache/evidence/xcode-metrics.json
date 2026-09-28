@@ -1,0 +1,42 @@
+{
+  "toolchain": "Xcode 27.0 (27A266a)",
+  "device": "Apple M4",
+  "executionMode": "Serial",
+  "performanceState": "Medium",
+  "inputBytes": 1487,
+  "kernelInvocationsEach": 4096,
+  "capture": "build/v22/cache-study/capture-19296E7C-64D8-48B6-83F5-602D935819D8.gputrace",
+  "metrics": [
+    {
+      "variant": "baseline",
+      "Temporary Registers": 96,
+      "Allocated Registers": 192,
+      "High Register": 192,
+      "Spilled Bytes": 32,
+      "Kernel Occupancy percent": 9.45,
+      "Static ALU instructions": 2625,
+      "Kernel ALU Instructions (encoder)": 4106080080
+    },
+    {
+      "variant": "holes",
+      "Temporary Registers": 96,
+      "Allocated Registers": 192,
+      "High Register": 192,
+      "Spilled Bytes": 384,
+      "Kernel Occupancy percent": 10.24,
+      "Static ALU instructions": 4749,
+      "Kernel ALU Instructions (encoder)": 2563337680
+    },
+    {
+      "variant": "cached",
+      "Temporary Registers": 96,
+      "Allocated Registers": 192,
+      "High Register": 192,
+      "Spilled Bytes": 480,
+      "Kernel Occupancy percent": 10.86,
+      "Static ALU instructions": null,
+      "Kernel ALU Instructions (encoder)": 1430129168
+    }
+  ],
+  "note": "Register displays use the original Xcode labels. Encoder-level and GPU-command-level ALU counter values differ; the report uses encoder counters consistently. Cached static ALU count is omitted because the display clips its leading digits."
+}

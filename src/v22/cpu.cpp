@@ -1,5 +1,28 @@
 #include "core.h"
 #include "cpu.h"
+#include <vector>
+
+extern "C" void vm_cpu_prepare(const uint8_t *input, uint32_t size, void *prepared) {
+    prepare(input, size, Workspace{static_cast<V *>(prepared), 1});
+}
+
+extern "C" int vm_cpu_finish_nonce(const uint8_t *input, uint32_t size, uint32_t nonceOffset,
+                                   uint32_t nonceBytes, uint64_t nonce, const void *prepared,
+                                   void *scratch, uint8_t *output) {
+    if (nonceBytes > 8 || nonceOffset > size || nonceBytes > size-nonceOffset) return -1;
+    if (!canCacheNonce(size, nonceOffset, nonceBytes)) {
+        std::vector<uint8_t> bytes(input, input+size);
+        for (U32 i = 0; i < nonceBytes; ++i) bytes[nonceOffset+i] = uint8_t(nonce >> (8*i));
+        hash(bytes.data(), size, Workspace{static_cast<V *>(scratch), 1}, reinterpret_cast<V *>(output));
+        return 0;
+    }
+    U32 dirty[16];
+    V seeds[4];
+    OverlayWorkspace work{static_cast<const V *>(prepared), static_cast<V *>(scratch), dirty, seeds, 1, 1};
+    work.reset();
+    finishNonce(work, size, nonceOffset, nonceBytes, nonce, reinterpret_cast<V *>(output));
+    return 1;
+}
 
 extern "C" void vm_cpu_hashes(const uint8_t *input, const uint32_t *lengths, uint32_t stride,
                               uint32_t count, uint8_t *output, void *scratch) {

@@ -63,14 +63,16 @@ private struct Configuration: Decodable {
         for fixture in file.vectors {
             guard let input = [UInt8](hex:fixture.input), let expected = [UInt8](hex:fixture.digest) else { throw CLIError.fixture("hex") }
             let result = try solver.search(input: input,nonceOffset:0,nonceBytes:0,target:.max)
-            guard VerusHash.digest(input) == expected, result.candidates.first?.digest == expected else { throw CLIError.fixture("digest mismatch") }
+            guard VerusHash.digest(input) == expected,
+                  try PreparedVerusHash(input:input,nonceOffset:0,nonceBytes:0).digest() == expected,
+                  result.candidates.first?.digest == expected else { throw CLIError.fixture("digest mismatch") }
         }
         print("Verified \(file.vectors.count) independent CPU/GPU reference vectors with Metal validation.")
     }
     private static func benchmark(_ args: Arguments) throws {
         try args.validate(valueOptions:["duration","batch-nonces"],flagOptions:["json"])
         let duration = try args.int("duration",default:10,in:1...3600)
-        let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:4096,in:1...32768))
+        let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:32768,in:1...32768))
         let stats = StatisticsStore(); var accumulator = SearchStatisticsAccumulator()
         let input = [UInt8](repeating:0,count:1487)
         let warmup = ProcessInfo.processInfo.systemUptime
@@ -128,7 +130,7 @@ private struct Configuration: Decodable {
         let shareLimit = try args.optionalInt("stop-after-shares",in:1...1_000_000)
         let interval = try args.int("stats-interval",default:10,in:1...3600)
         let telemetryInterval = try args.int("telemetry-interval",default:30,in:1...3600)
-        let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:4096,in:1...32768))
+        let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:32768,in:1...32768))
         let stats = StatisticsStore(); stats.update { $0.device = solver.device.name }
         let writer = JSONLEventWriter(path:args.string("stats-file"))
         if let error = writer.failure { throw error }

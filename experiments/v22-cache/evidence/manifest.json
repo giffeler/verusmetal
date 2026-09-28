@@ -1,0 +1,16 @@
+{
+  "src/v22/core.h": "4853a042049aeaf01b8a3f289c6ba33fd4add1a8e6fd0daf580280f3ec56fca5",
+  "src/v22/constants.h": "f0d39334a0ba0eb8d3cd9f6be349f32820be494c9ee487853b247da0d1ae69f4",
+  "src/v22/cpu.h": "37e48888a386d7c05a97a16528af83e3345c02d57283dd4ae17deb8944b0cc90",
+  "src/v22/cpu.cpp": "1de27cb1852f4b7677d7a35f1bf7f7aa1d960a2a37dc848a37fc287064893753",
+  "src/v22/platform.h": "19878217cb5ceea41ec27e4cc91294ceb765580ba45f5af075dcdf7bcd3b5201",
+  "Sources/VerusMetalCore/MiningKernels.metal": "c5b077611752408072b499db24ef2d1da9555bd045b21c45adc139d9754c6b3d",
+  "tools/V22CacheStudy.mm": "d33a2d5e500133fe89a5247e7d04c2a22abdfc245f90a3ac66044753d9fd4e87",
+  "build/v22/cache-study/tests.metallib": "e46e176ab682c8f591be0e518807aee4fba3db7368fc17b87405384128e049d6",
+  "build/v22/cache-study/control.metallib": "b503d2df6f2b2f8495cd0fc51677baf4aa7930741b78ae35a023f7bcc5347f8f",
+  "build/v22/cache-study/cached.metallib": "ec23302cccbedb9db1779c0fe7a0d34bf6426cbe904f5cdf39ce0bce6cb10931",
+  "build/v22/cache-study/binned.metallib": "99dd44ea4327dcff4e4ac953b038656166257684ecce138d5cf59e5de76b6a1c",
+  "build/v22/cache-study/baseline.metallib": "602cf75dfae63f7ed4f91de84ea4e98998b4efaacd9f16056276c9e469def600",
+  "build/v22/cache-study/holes.metallib": "2068f73a1851a07247118e122a8999b8f184dd2df85c7c276ada7d5d899b2b19",
+  "build/v22/cache-study/frozen.o": "c4763b4f417106f8876b775c07e1d9b1e897f661f5ff8401e6d1d8034606db92"
+}

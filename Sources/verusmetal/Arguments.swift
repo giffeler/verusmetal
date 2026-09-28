@@ -101,7 +101,7 @@ enum CLIError: Error, LocalizedError {
     }
 }
 
-let version = "0.1.0"
+let version = "0.2.0"
 
 func commandUsage(_ command: String) -> String? {
     switch command {
@@ -113,7 +113,7 @@ func commandUsage(_ command: String) -> String? {
         """
     case "benchmark":
         return """
-          verusmetal benchmark [--duration 10] [--batch-nonces 4096] [--json]
+          verusmetal benchmark [--duration 10] [--batch-nonces 32768] [--json]
 
         Measure full VerusHash v2.2 on a synthetic 1,487-byte input after warmup.
         Duration: 1...3600 seconds. Batch: 1...32768 nonces; --batch is an alias.
@@ -135,7 +135,7 @@ func commandUsage(_ command: String) -> String? {
           --pool URL                  Override the configured Stratum endpoint
           --wallet ADDRESS            Override the configured Verus transparent address
           --worker NAME               ASCII alphanumeric, 1...64 bytes (default: m4)
-          --batch-nonces N            Nonces per dispatch, 1...32768 (default: 4096)
+          --batch-nonces N            Nonces per dispatch, 1...32768 (default: 32768)
           --batch N                   Compatibility alias for --batch-nonces
           --duration SECONDS          Stop after 1...604800 seconds (default: unlimited)
           --stop-after-shares N       Stop after 1...1000000 accepted shares
@@ -157,7 +157,7 @@ VerusMetal \(version) — Apple Silicon VerusHash v2.2 miner
 
 Usage:
   verusmetal devices [--json]
-  verusmetal benchmark [--duration 10] [--batch-nonces 4096] [--json]
+  verusmetal benchmark [--duration 10] [--batch-nonces 32768] [--json]
   verusmetal verify --fixtures tests/v22-vectors.json
   verusmetal mine --config Config/local.json [options]
   verusmetal mine --pool stratum+ssl://host:port --wallet address [options]

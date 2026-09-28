@@ -25,8 +25,10 @@ final class HashTests: XCTestCase {
         for f in file.vectors {
             let bytes = try XCTUnwrap([UInt8](hex:f.input))
             XCTAssertEqual(VerusHash.digest(bytes).hex,f.digest)
+            XCTAssertEqual(try PreparedVerusHash(input:bytes,nonceOffset:0,nonceBytes:0).digest().hex,f.digest)
             let result = try solver.search(input:bytes,nonceOffset:0,nonceBytes:0,target:.max)
             XCTAssertEqual(result.candidates.first?.digest.hex,f.digest)
+            XCTAssertTrue(solver.usesCachedHash)
         }
     }
     func testPartialGroupsNonceMappingAndReuse() throws {
@@ -41,6 +43,58 @@ final class HashTests: XCTestCase {
             }
         }
     }
+    func testCachedPrefixesRandomNoncesAndJobChanges() throws {
+        let solver = try MetalVerusSolver(batchSize:129,validation:true)
+        var random: UInt64 = 0x938aa746bc92
+        func next() -> UInt64 {
+            random ^= random << 13; random ^= random >> 7; random ^= random << 17
+            return random
+        }
+        for version: UInt8 in [7,8] {
+            for prefixLength in 1...14 {
+                let prefix = (0..<prefixLength).map { _ in UInt8(truncatingIfNeeded:next()) }
+                let job = try VerusStratumJob.decode(makeParams(version:version),generation:1,prefix:prefix,target:.max)
+                let cpu = try PreparedVerusHash(input:job.hashInput,nonceOffset:job.nonceOffset,nonceBytes:job.nonceBytes)
+                XCTAssertTrue(cpu.usesCachedHash)
+                let limit: UInt64 = job.nonceBytes == 8 ? .max : (UInt64(1) << (8*job.nonceBytes))-1
+                // Repeat each range to detect stale masks, and change strides for partial groups.
+                for count in [129,33] {
+                    let first = next() % (limit-UInt64(count))
+                    for _ in 0..<2 {
+                        let batch = try solver.search(job:job,firstNonce:first,count:count)
+                        XCTAssertTrue(solver.usesCachedHash)
+                        XCTAssertEqual(batch.candidates.count,count)
+                        for candidate in batch.candidates {
+                            let expected = VerusHash.digest(try job.input(nonce:candidate.nonce))
+                            XCTAssertEqual(candidate.digest,expected)
+                            XCTAssertEqual(try cpu.digest(nonce:candidate.nonce),expected)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func testFullBlockOverlapFallbackAndModeTransitions() throws {
+        let solver = try MetalVerusSolver(batchSize:33,validation:true)
+        let input = (0..<79).map { UInt8(truncatingIfNeeded:$0*37) }
+        for offset in [63,64,31,68,0] {
+            let cpu = try PreparedVerusHash(input:input,nonceOffset:offset,nonceBytes:8)
+            for first: UInt64 in [0,0x8192837465564321] {
+                let batch = try solver.search(input:input,nonceOffset:offset,nonceBytes:8,target:.max,firstNonce:first)
+                XCTAssertEqual(solver.usesCachedHash,offset >= 64)
+                XCTAssertEqual(cpu.usesCachedHash,offset >= 64)
+                for candidate in batch.candidates {
+                    var bytes = input
+                    for i in 0..<8 { bytes[offset+i] = UInt8(truncatingIfNeeded:candidate.nonce >> (8*i)) }
+                    let expected = VerusHash.digest(bytes)
+                    XCTAssertEqual(candidate.digest,expected)
+                    XCTAssertEqual(try cpu.digest(nonce:candidate.nonce),expected)
+                }
+            }
+        }
+    }
+
     func testTargetEqualityAndLittleEndianOrder() throws {
         let solver = try MetalVerusSolver(batchSize:1,validation:true)
         let bytes = Array((0..<64).map(UInt8.init))
@@ -58,6 +112,8 @@ final class HashTests: XCTestCase {
     func testNonceBoundsAndPreparationModeChange() throws {
         let solver = try MetalVerusSolver(batchSize:2,validation:true)
         let bytes = [UInt8](repeating:0,count:64)
+        XCTAssertThrowsError(try solver.search(input:bytes,nonceOffset:Int.max,nonceBytes:8,target:.max))
+        XCTAssertThrowsError(try PreparedVerusHash(input:bytes,nonceOffset:Int.max,nonceBytes:8))
         XCTAssertThrowsError(try solver.search(input:bytes,nonceOffset:56,nonceBytes:8,target:.max,firstNonce:.max))
         XCTAssertThrowsError(try solver.search(input:bytes,nonceOffset:63,nonceBytes:2,target:.max))
         XCTAssertThrowsError(try solver.search(input:bytes,nonceOffset:56,nonceBytes:1,target:.max,firstNonce:255))

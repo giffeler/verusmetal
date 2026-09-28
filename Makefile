@@ -64,6 +64,8 @@ capture-v22: v22
 sanitize-v22: | build/v22
 	$(CXX) -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -mcpu=native -Isrc/v22 tests/cpu_vectors.cpp src/v22/cpu.cpp -o build/v22/check-sanitized
 	python3 tests/check_cpu.py
+	$(CXX) -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -mcpu=native -Isrc/v22 tests/v22-cache-cpu.cpp src/v22/cpu.cpp -o build/v22/check-cache-sanitized
+	./build/v22/check-cache-sanitized
 
 register-study-v22:
 	python3 tools/v22_register_variants.py
@@ -112,3 +114,7 @@ integration-miner: miner
 
 mine: miner
 	./build/miner/Build/Products/Release/verusmetal mine --config Config/local.json
+
+.PHONY: test-cache-v22
+test-cache-v22:
+	python3 tools/v22_cache_study.py

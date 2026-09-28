@@ -47,9 +47,12 @@ public final class MetalVerusSolver {
     public let batchSize: Int
     private let queue: any MTLCommandQueue
     private let pipeline: any MTLComputePipelineState
+    private let cachedPipeline: any MTLComputePipelineState
+    private let prepared: any MTLBuffer
+    public private(set) var usesCachedHash = false
     private var input: (any MTLBuffer)?
     private let output: any MTLBuffer
-    private let scratch: any MTLBuffer
+    private var scratch: (any MTLBuffer)?
     private let matches: any MTLBuffer
     private let target: any MTLBuffer
     private var preparedGeneration: UInt64?
@@ -62,7 +65,7 @@ public final class MetalVerusSolver {
         MTLCopyAllDevices().map { GPUDeviceInfo(name: $0.name, unifiedMemory: $0.hasUnifiedMemory,
                                                recommendedWorkingSetBytes: $0.recommendedMaxWorkingSetSize) }
     }
-    public init(batchSize: Int = 4096, validation: Bool = false) throws {
+    public init(batchSize: Int = 32768, validation: Bool = false) throws {
         guard (1...32768).contains(batchSize), let device = MTLCreateSystemDefaultDevice(),
               let queue = device.makeCommandQueue() else { throw VerusError.invalid("Invalid batch size or Metal unavailable") }
         self.device = device; self.queue = queue; self.batchSize = batchSize
@@ -74,12 +77,14 @@ public final class MetalVerusSolver {
         descriptor.maxTotalThreadsPerThreadgroup = 128
         descriptor.shaderValidation = validation ? .enabled : .disabled
         pipeline = try device.makeComputePipelineState(descriptor: descriptor, options: [], reflection: nil)
+        descriptor.computeFunction = library.makeFunction(name: "verus_search_cached")
+        cachedPipeline = try device.makeComputePipelineState(descriptor: descriptor, options: [], reflection: nil)
         func buffer(_ size: Int) throws -> any MTLBuffer {
             guard let b = device.makeBuffer(length: size, options: .storageModeShared)
             else { throw VerusError.invalid("Metal buffer allocation failed") }
             return b
         }
-        output = try buffer(batchSize*32); scratch = try buffer(batchSize*8896)
+        output = try buffer(batchSize*32); prepared = try buffer(8896)
         matches = try buffer(batchSize*4); target = try buffer(32)
     }
 
@@ -92,24 +97,49 @@ public final class MetalVerusSolver {
                        generation: UInt64 = 0, firstNonce: UInt64 = 0, count requested: Int? = nil) throws -> SearchBatch {
         let count = requested ?? batchSize
         guard (1...batchSize).contains(count), bytes.count <= 4096, (0...8).contains(nonceBytes),
-              nonceOffset >= 0, nonceOffset+nonceBytes <= bytes.count,
+              nonceOffset >= 0, nonceOffset <= bytes.count, nonceBytes <= bytes.count-nonceOffset,
               firstNonce <= UInt64.max-UInt64(count-1)
         else { throw VerusError.invalid("Invalid search range") }
         if nonceBytes > 0 && nonceBytes < 8 {
             guard firstNonce+UInt64(count-1) < UInt64(1) << (8*nonceBytes)
             else { throw VerusError.invalid("Nonce range exceeds solution space") }
         }
-        if input == nil || preparedGeneration != generation || preparedInput != bytes || preparedNonceOffset != nonceOffset || preparedNonceBytes != nonceBytes {
-            inputStride = max(16,(bytes.count+15) & ~15)
-            guard let buffer = device.makeBuffer(length: inputStride*batchSize, options: .storageModeShared)
-            else { throw VerusError.invalid("Input buffer allocation failed") }
-            memset(buffer.contents(), 0, buffer.length)
-            bytes.withUnsafeBytes { raw in
-                if let base = raw.baseAddress, !bytes.isEmpty {
-                    for i in 0..<batchSize { memcpy(buffer.contents()+i*inputStride, base, bytes.count) }
-                }
+        if preparedGeneration != generation || preparedInput != bytes || preparedNonceOffset != nonceOffset || preparedNonceBytes != nonceBytes {
+            let cached = nonceBytes == 0 || nonceOffset >= (bytes.count/32)*32
+            let requiredScratch = batchSize * (cached ? 8192 : 8896)
+            var nextScratch = scratch
+            if nextScratch?.length != requiredScratch {
+                guard let buffer = device.makeBuffer(length: requiredScratch, options: .storageModeShared)
+                else { throw VerusError.invalid("Workspace allocation failed") }
+                nextScratch = buffer
             }
-            input = buffer; preparedInput = bytes; preparedGeneration = generation
+            let nextInput: (any MTLBuffer)?
+            let nextStride: Int
+            if cached {
+                let storage = bytes.isEmpty ? [UInt8(0)] : bytes
+                storage.withUnsafeBufferPointer {
+                    vm_cpu_prepare($0.baseAddress!, UInt32(bytes.count), prepared.contents())
+                }
+                nextInput = nil
+                nextStride = 0
+            } else {
+                // A nonce in a full block changes the absorbed seed and key.
+                // Keep the complete reference path; expose the mode to callers.
+                nextStride = max(16,(bytes.count+15) & ~15)
+                guard let buffer = device.makeBuffer(length: nextStride*batchSize, options: .storageModeShared)
+                else { throw VerusError.invalid("Input buffer allocation failed") }
+                memset(buffer.contents(), 0, buffer.length)
+                bytes.withUnsafeBytes { raw in
+                    if let base = raw.baseAddress, !bytes.isEmpty {
+                        for i in 0..<batchSize { memcpy(buffer.contents()+i*nextStride, base, bytes.count) }
+                    }
+                }
+                nextInput = buffer
+            }
+            // Commit preparation only after every allocation succeeds.
+            input = nextInput; inputStride = nextStride; scratch = nextScratch
+            usesCachedHash = cached
+            preparedInput = bytes; preparedGeneration = generation
             preparedNonceOffset = nonceOffset; preparedNonceBytes = nonceBytes
         }
         let targetBytes = Array(threshold.bigEndianBytes.reversed())
@@ -119,8 +149,8 @@ public final class MetalVerusSolver {
         let start = ProcessInfo.processInfo.systemUptime
         guard let command = queue.makeCommandBuffer(), let encoder = command.makeComputeCommandEncoder()
         else { throw VerusError.invalid("Metal command allocation failed") }
-        encoder.setComputePipelineState(pipeline)
-        for (i,b) in [input!,output,scratch,matches,target].enumerated() { encoder.setBuffer(b, offset: 0, index: i) }
+        encoder.setComputePipelineState(usesCachedHash ? cachedPipeline : pipeline)
+        for (i,b) in [usesCachedHash ? prepared : input!,output,scratch!,matches,target].enumerated() { encoder.setBuffer(b, offset: 0, index: i) }
         encoder.setBytes(&parameters, length: MemoryLayout<SearchParameters>.stride, index: 5)
         encoder.dispatchThreadgroups(MTLSize(width: (count+127)/128, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 128, height: 1, depth: 1))
         encoder.endEncoding(); command.commit(); command.waitUntilCompleted()

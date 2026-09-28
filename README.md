@@ -1,11 +1,12 @@
 # VerusMetal
 
 VerusCoin GPU miner for Apple Silicon, built with Swift and Metal and an
-independently written VerusHash v2.2 implementation. Nonce search and full hashing
-run on the GPU, with one complete hash per GPU thread.
+independently written VerusHash v2.2 implementation. Nonce search runs on the GPU, with one nonce per thread. Job-constant input
+absorption and key expansion run once on the CPU; each GPU thread performs the
+nonce-dependent mix and finalization.
 
 The CPU manages the pool connection and GPU dispatches, and verifies GPU-found
-share candidates before submission. The separate CPU hash implementation also
+share candidates before submission. The shared canonical hash core also
 supports correctness tests and CPU-versus-GPU benchmarks. The mining command
 uses the GPU for nonce search; it has no CPU mining mode.
 
@@ -20,7 +21,7 @@ A Developer ID signed and notarized arm64 executable is available from the
 [VerusMetal page](https://ios.gekko.de/verusmetal), with its SHA-256 checksum and
 corresponding source. Extract the ZIP and run `./verusmetal --help` from Terminal.
 Requires Apple Silicon and macOS 27 or later; Xcode is only needed to build from
-source. See the [2026-09-28 release notes](Docs/releases/2026-09-28.md) for artifact
+source. See the [0.2.0 release notes](Docs/releases/0.2.0.md) for artifact
 identity, validation and limits.
 
 ## Requirements and build
@@ -63,7 +64,7 @@ caffeinate -i ./verusmetal mine \
   --pool stratum+tcp://eu.luckpool.net:3956 \
   --wallet YOUR_VERUS_TRANSPARENT_ADDRESS \
   --worker m4 \
-  --batch-nonces 4096 \
+  --batch-nonces 32768 \
   --stats-file verusmetal.jsonl \
   --stats-interval 240
 ```
@@ -92,8 +93,15 @@ is `m4`. This endpoint uses plaintext TCP, explicitly selected by its
 
 Use Ctrl-C or SIGTERM to stop. Add `--duration 180 --stop-after-shares 2` for a
 bounded test; it stops at the time limit or after two accepted shares, whichever
-comes first. The default batch is 4,096 hashes (`--batch-nonces`); `--batch` remains
-a compatibility alias. Supply only one of these option names.
+comes first. The default batch is 32,768 hashes (`--batch-nonces`); `--batch` remains
+a compatibility alias. Supply only one of these option names. The cached GPU path
+uses approximately 257.13 MiB of buffers at this default (256 MiB for sparse key
+writes), plus 8 KiB of threadgroup masks per group. It uploads one 8,896-byte
+prepared state per job/prefix and resets mutation masks for every dispatch.
+
+Short, paired M4 tests measured about 2.23x higher dispatch throughput at equal
+batch size. This is local synthetic evidence; the published live-pool result above
+predates caching. See the [cache study](Docs/research/KEY-CACHING.md).
 
 For another pool, copy `Config/example.json` to `Config/local.json` and fill in
 its endpoint and your address. `make mine` builds and uses `Config/local.json`.
@@ -119,7 +127,7 @@ make sanitize-v22      # CPU AddressSanitizer and UndefinedBehaviorSanitizer
 ```
 
 For scripts, `devices --json` returns device information and
-`benchmark --duration 10 --batch-nonces 4096 --json` returns measured rates in
+`benchmark --duration 10 --batch-nonces 32768 --json` returns measured rates in
 hashes per second. Use `--version` to print the CLI version and `COMMAND --help`
 for command-specific usage.
 

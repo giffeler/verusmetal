@@ -1,0 +1,329 @@
+{
+  "count" : 4096,
+  "device" : "Apple M4",
+  "inputBytes" : 1487,
+  "lowPowerMode" : false,
+  "os" : "Version 27.0 (Build 26A428)",
+  "samples" : [
+    {
+      "gpuSeconds" : 0.0035070416051894426,
+      "pair" : 0,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038216250250115991
+    },
+    {
+      "gpuSeconds" : 0.0026538749225437641,
+      "pair" : 0,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029328750679269433
+    },
+    {
+      "gpuSeconds" : 0.0026266250060871243,
+      "pair" : 1,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028987500118091702
+    },
+    {
+      "gpuSeconds" : 0.003524750005453825,
+      "pair" : 1,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037931670667603612
+    },
+    {
+      "gpuSeconds" : 0.0035107083385810256,
+      "pair" : 2,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038006249815225601
+    },
+    {
+      "gpuSeconds" : 0.0026716249994933605,
+      "pair" : 2,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029392499709501863
+    },
+    {
+      "gpuSeconds" : 0.0026241251034662127,
+      "pair" : 3,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028842090396210551
+    },
+    {
+      "gpuSeconds" : 0.0035466250265017152,
+      "pair" : 3,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038226660108193755
+    },
+    {
+      "gpuSeconds" : 0.0035042082890868187,
+      "pair" : 4,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037957500899210572
+    },
+    {
+      "gpuSeconds" : 0.0026373332366347313,
+      "pair" : 4,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029271250823512673
+    },
+    {
+      "gpuSeconds" : 0.0026337916497141123,
+      "pair" : 5,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029029169818386436
+    },
+    {
+      "gpuSeconds" : 0.0035226666368544102,
+      "pair" : 5,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037766250316053629
+    },
+    {
+      "gpuSeconds" : 0.0035004583187401295,
+      "pair" : 6,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037658750079572201
+    },
+    {
+      "gpuSeconds" : 0.0026311667170375586,
+      "pair" : 6,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0030326659325510263
+    },
+    {
+      "gpuSeconds" : 0.0026388332480564713,
+      "pair" : 7,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029313750565052032
+    },
+    {
+      "gpuSeconds" : 0.0035038749920204282,
+      "pair" : 7,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037944999057799578
+    },
+    {
+      "gpuSeconds" : 0.0035147917224094272,
+      "pair" : 8,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037651249440386891
+    },
+    {
+      "gpuSeconds" : 0.0026505833957344294,
+      "pair" : 8,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028685419820249081
+    },
+    {
+      "gpuSeconds" : 0.0026562499115243554,
+      "pair" : 9,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0030352500034496188
+    },
+    {
+      "gpuSeconds" : 0.0035434999736025929,
+      "pair" : 9,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038253329694271088
+    },
+    {
+      "gpuSeconds" : 0.0035179583355784416,
+      "pair" : 10,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037907080259174109
+    },
+    {
+      "gpuSeconds" : 0.0026369999395683408,
+      "pair" : 10,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029349590186029673
+    },
+    {
+      "gpuSeconds" : 0.0026241249870508909,
+      "pair" : 11,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029087080620229244
+    },
+    {
+      "gpuSeconds" : 0.0035227499902248383,
+      "pair" : 11,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037993340520188212
+    },
+    {
+      "gpuSeconds" : 0.003497958299703896,
+      "pair" : 12,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037720000836998224
+    },
+    {
+      "gpuSeconds" : 0.0026384999509900808,
+      "pair" : 12,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029179580742493272
+    },
+    {
+      "gpuSeconds" : 0.0026217499980702996,
+      "pair" : 13,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029075420461595058
+    },
+    {
+      "gpuSeconds" : 0.0035082499962300062,
+      "pair" : 13,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037705840077251196
+    },
+    {
+      "gpuSeconds" : 0.0035991250770166516,
+      "pair" : 14,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038570419419556856
+    },
+    {
+      "gpuSeconds" : 0.002622791682370007,
+      "pair" : 14,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029029160505160689
+    },
+    {
+      "gpuSeconds" : 0.0026359165785834193,
+      "pair" : 15,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0029124169377610087
+    },
+    {
+      "gpuSeconds" : 0.0034994999878108501,
+      "pair" : 15,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037642500828951597
+    },
+    {
+      "gpuSeconds" : 0.0035144999856129289,
+      "pair" : 16,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037912919651716948
+    },
+    {
+      "gpuSeconds" : 0.0026288749650120735,
+      "pair" : 16,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028957090107724071
+    },
+    {
+      "gpuSeconds" : 0.0026173749938607216,
+      "pair" : 17,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028986250981688499
+    },
+    {
+      "gpuSeconds" : 0.0035202500876039267,
+      "pair" : 17,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038392080459743738
+    },
+    {
+      "gpuSeconds" : 0.0035532499896362424,
+      "pair" : 18,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0037971249548718333
+    },
+    {
+      "gpuSeconds" : 0.0026338750030845404,
+      "pair" : 18,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028963340446352959
+    },
+    {
+      "gpuSeconds" : 0.0026214999379590154,
+      "pair" : 19,
+      "position" : 0,
+      "thermal" : 0,
+      "variant" : "holes",
+      "wallSeconds" : 0.0028910840628668666
+    },
+    {
+      "gpuSeconds" : 0.0035394582664594054,
+      "pair" : 19,
+      "position" : 1,
+      "thermal" : 0,
+      "variant" : "baseline",
+      "wallSeconds" : 0.0038113340269774199
+    }
+  ]
+}

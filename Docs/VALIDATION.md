@@ -19,7 +19,37 @@ The first implementation supports block version 0x00010004, a 1,344-byte solutio
 solution versions 4–8 and the nine-field Equihash-style notify layout. Unsupported
 layouts fail closed. PBaaS jobs require reserved chain commitments and at least
 15 bytes of free solution space. Latest-job policy discards previous work even
-when `clean_jobs` is false. No shared-prefix/key caching is implemented yet.
+when `clean_jobs` is false.
+
+## Cached hashing validation (2026-09-28)
+
+The miner prepares the absorbed seed, FillExtra tail and 552-vector pristine key
+once per job/prefix. GPU threads patch nonce bytes and perform the existing mix
+and keyed finalization through a mutation overlay. `hash()` remains the full
+reference composition of preparation and nonce finalization. Candidate submission
+still uses the complete CPU reference hash, independently of cached state.
+
+- All 148 independent vectors pass full CPU, cached CPU, full GPU and cached GPU
+  paths. The CLI `verify` includes cached CPU/GPU checks.
+- Random nonce ranges and prefixes 1–14 pass for PBaaS solution versions 7 and 8,
+  including same-generation input/prefix changes, repeated dispatches, changed
+  strides and partial groups. Full-block nonce overlap selects the full path.
+- 21,000 CPU cached/full nonce comparisons, repeated independent vectors and
+  fallback checks pass ASan/UBSan.
+- 8,192 Metal product/AES cases pass against the frozen ARM PMULL/AES oracle.
+  512 directed mix cases compare every final workspace vector and the reduced
+  result against the frozen core, including aliased stores and two overlay resets.
+- `make test-miner`, `make integration-miner`, `make sanitize-v22`,
+  `make validate-v22` and `make test-cache-v22` pass. Metal shader validation
+  and guard bytes cover the GPU primitive and overlay checks.
+- Optimized AIR contains no application helper calls in either mining kernel.
+
+The default batch is now 32,768. Paired, interleaved runs in both argument orders
+measure approximately 2.23x end-to-end improvement at equal batch size; separate
+GPU durations and an identical-source control are retained in the
+[cache report](research/KEY-CACHING.md). These are bounded local measurements,
+not sustained or pool-accepted rates. No new live-pool test was authorized or run.
+CPU/hybrid mining remains excluded at the maintainer's request.
 
 ## Live plaintext pool validation
 

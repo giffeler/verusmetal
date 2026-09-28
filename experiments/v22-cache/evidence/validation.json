@@ -1,0 +1,47 @@
+{
+  "testMiner": {
+    "tests": 18,
+    "failures": 0,
+    "log": "build/v22/cache-study/test-miner-preparation.log"
+  },
+  "integrationMiner": {
+    "passed": true,
+    "log": "build/v22/cache-study/integration-preparation.log"
+  },
+  "sanitizeV22": {
+    "independentVectors": 148,
+    "cachedNonceComparisons": 21000,
+    "log": "build/v22/cache-study/sanitize-cache.log"
+  },
+  "validateV22": {
+    "independentVectors": 148,
+    "log": "build/v22/cache-study/validate.log"
+  },
+  "testCacheV22": {
+    "primitiveCases": 8192,
+    "directedMixCases": 512,
+    "overlayPasses": 2,
+    "hotPathApplicationCalls": 0,
+    "log": "build/v22/cache-study/test-cache-final.log"
+  },
+  "cliVerify": {
+    "independentVectors": 148,
+    "log": "build/v22/cache-study/cli-verify-final.log"
+  },
+  "defaultBatchCheck": {
+    "averageHashrate": 3655984.484328792,
+    "batchNonces": 32768,
+    "commandWallSeconds": 1.0038379582110792,
+    "device": "Apple M4",
+    "dispatches": 112,
+    "durationSeconds": 1.0081842916551977,
+    "effectiveHashrate": 3640223.350410182,
+    "gpuHashrate": 3775053.0776735474,
+    "gpuSeconds": 0.9721759997773916,
+    "nonces": 3670016,
+    "requestedDurationSeconds": 1,
+    "schemaVersion": 1,
+    "version": "0.1.0"
+  },
+  "externalPoolTest": "Not run; explicit maintainer approval required."
+}

@@ -1,0 +1,15 @@
+{
+  "averageHashrate" : 2383278.0520442994,
+  "batchNonces" : 4096,
+  "commandWallSeconds" : 9.956088833045214,
+  "device" : "Apple M4",
+  "dispatches" : 5793,
+  "durationSeconds" : 10.000611625029705,
+  "effectiveHashrate" : 2372667.6817058697,
+  "gpuHashrate" : 2872192.4681883035,
+  "gpuSeconds" : 8.261329372180626,
+  "nonces" : 23728128,
+  "requestedDurationSeconds" : 10,
+  "schemaVersion" : 1,
+  "version" : "0.1.0"
+}

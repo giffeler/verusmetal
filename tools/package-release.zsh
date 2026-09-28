@@ -162,7 +162,7 @@ print -- "Running an isolated Metal smoke benchmark"
     cd "${VERIFY_DIR}"
     ./verusmetal devices --json
     ./verusmetal verify --fixtures "${REPOSITORY_ROOT}/tests/v22-vectors.json"
-    ./verusmetal benchmark --duration 1 --batch-nonces 4096 --json
+    ./verusmetal benchmark --duration 1 --batch-nonces 32768 --json
 )
 
 

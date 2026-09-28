@@ -19,6 +19,13 @@ using V = U32 __attribute__((ext_vector_type(4)));
 #define VM_DEVICE
 #define VM_THREAD
 #endif
+#ifdef __METAL_VERSION__
+#define VM_INLINE inline __attribute__((always_inline))
+#define VM_MASK threadgroup
+#else
+#define VM_INLINE inline
+#define VM_MASK
+#endif
 #include "constants.h"
 
 #ifdef __METAL_VERSION__
@@ -128,11 +135,11 @@ constant U32 T3[256] = {
 #endif
 
 
-inline U64 low(V x) { return U64(x.x) | (U64(x.y) << 32); }
-inline U64 high(V x) { return U64(x.z) | (U64(x.w) << 32); }
-inline V words(U64 lo, U64 hi) { return V{U32(lo), U32(lo >> 32), U32(hi), U32(hi >> 32)}; }
+VM_INLINE U64 low(V x) { return U64(x.x) | (U64(x.y) << 32); }
+VM_INLINE U64 high(V x) { return U64(x.z) | (U64(x.w) << 32); }
+VM_INLINE V words(U64 lo, U64 hi) { return V{U32(lo), U32(lo >> 32), U32(hi), U32(hi >> 32)}; }
 
-inline V aes(V x, V key) {
+VM_INLINE V aes(V x, V key) {
 #ifdef __METAL_VERSION__
     V y;
     // ShiftRows selects one byte from each column. MixColumns is folded into T0.
@@ -146,28 +153,37 @@ inline V aes(V x, V key) {
 #endif
 }
 
-inline V product(U64 a, U64 b) {
 #ifdef __METAL_VERSION__
-    // Four independent degree-31 polynomial products; no integer carries.
-    U32 al = U32(a), ah = U32(a >> 32);
-    U64 bl = U32(b), bh = U32(b >> 32);
-    U64 ll = 0, lh = 0, hl = 0, hh = 0;
-    for (U32 bit = 0; bit != 32; ++bit) {
-        U64 ml = U64(0) - U64(al & 1), mh = U64(0) - U64(ah & 1);
-        ll ^= bl & ml; lh ^= bh & ml;
-        hl ^= bl & mh; hh ^= bh & mh;
-        al >>= 1; ah >>= 1;
-        bl <<= 1; bh <<= 1;
-    }
-    U64 middle = lh ^ hl;
-    return words(ll ^ (middle << 32), hh ^ (middle >> 32));
+// Split coefficients into four residue classes. Three empty bits between
+// coefficients contain integer carries (at most eight terms per coefficient).
+// Masking after multiplication retains precisely the polynomial parity bits.
+VM_INLINE U64 polynomial32(U32 a, U32 b) {
+    U32 a0 = a & 0x11111111u, a1 = a & 0x22222222u;
+    U32 a2 = a & 0x44444444u, a3 = a & 0x88888888u;
+    U32 b0 = b & 0x11111111u, b1 = b & 0x22222222u;
+    U32 b2 = b & 0x44444444u, b3 = b & 0x88888888u;
+    U64 r0 = U64(a0)*b0 ^ U64(a1)*b3 ^ U64(a2)*b2 ^ U64(a3)*b1;
+    U64 r1 = U64(a0)*b1 ^ U64(a1)*b0 ^ U64(a2)*b3 ^ U64(a3)*b2;
+    U64 r2 = U64(a0)*b2 ^ U64(a1)*b1 ^ U64(a2)*b0 ^ U64(a3)*b3;
+    U64 r3 = U64(a0)*b3 ^ U64(a1)*b2 ^ U64(a2)*b1 ^ U64(a3)*b0;
+    return (r0 & 0x1111111111111111ul) | (r1 & 0x2222222222222222ul)
+         | (r2 & 0x4444444444444444ul) | (r3 & 0x8888888888888888ul);
+}
+#endif
+
+VM_INLINE V product(U64 a, U64 b) {
+#ifdef __METAL_VERSION__
+    U32 al = U32(a), ah = U32(a >> 32), bl = U32(b), bh = U32(b >> 32);
+    U64 lower = polynomial32(al, bl), upper = polynomial32(ah, bh);
+    U64 middle = polynomial32(al ^ ah, bl ^ bh) ^ lower ^ upper;
+    return words(lower ^ (middle << 32), upper ^ (middle >> 32));
 #else
     return V(vreinterpretq_u32_p128(vmull_p64(a, b)));
 #endif
 }
-inline V cross(V x) { return product(low(x), high(x)); }
+VM_INLINE V cross(V x) { return product(low(x), high(x)); }
 
-inline V roundedProduct(V a, V b) {
+VM_INLINE V roundedProduct(V a, V b) {
 #ifdef __METAL_VERSION__
     int4 al = as_type<int4>(a << 16) >> 16, bl = as_type<int4>(b << 16) >> 16;
     int4 ah = as_type<int4>(a) >> 16, bh = as_type<int4>(b) >> 16;
@@ -182,7 +198,7 @@ inline V roundedProduct(V a, V b) {
 #endif
 }
 
-inline V remainder(V x, U32 denominator) {
+VM_INLINE V remainder(V x, U32 denominator) {
     // Selector bits guarantee a nonzero divisor and exclude -1.
 #ifdef __METAL_VERSION__
     long numerator = as_type<long>(low(x));
@@ -194,7 +210,7 @@ inline V remainder(V x, U32 denominator) {
     return V{U32(numerator % divisor), 0, 0, 0};
 }
 
-inline U64 reduce(V x) {
+VM_INLINE U64 reduce(V x) {
     // Reduction modulo x^64 + x^4 + x^3 + x + 1, including length binding.
     U64 h = high(x);
     U64 overflow = (h >> 63) ^ (h >> 61) ^ (h >> 60);
