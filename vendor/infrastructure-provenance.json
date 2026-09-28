@@ -85,5 +85,11 @@
     "originalSHA256": "595139d1513afd2984c474f6e8907de7480402b4e17b354c54b7624cf28c6633",
     "adaptedSHA256": "291f5136dbf1321501d5f6864d49d1df8b178ef1ca1e743e28355dd488bbe628",
     "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
+  },
+  "tools/package-release.zsh": {
+    "source": "Scripts/package-release.zsh",
+    "originalSHA256": "001238b42e2b2e689b1b93cbd54d032485f93ef3f371d03a8d9f222f0c382887",
+    "adaptedSHA256": "5fe4dc32ed46fe43d85c27d98188c204235484ad765fd6836f07e336f911f85f",
+    "sourceCommit": "f2c15f333915bd62a3626708a61e5b4ef7e89aef"
   }
 }

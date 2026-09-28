@@ -21,8 +21,36 @@ loaded from memory. A missing embedded library is an error, not a file fallback.
   embedded Metal library. Code signing is disabled for these local builds.
 
 Swift 6.4 is the compiler requirement; `SWIFT_VERSION: 6.0` selects Swift 6
-language mode. The CPU core uses `-mcpu=native`, so release artifacts built on
-one machine are not yet a validated distribution for every Apple Silicon model.
+language mode. Release builds use `-O3 -mcpu=apple-m1` for the CPU verifier, keeping
+its instruction baseline compatible with the first Apple Silicon generation.
+Debug, Profile and historical research builds retain `-mcpu=native`. Runtime
+validation has been performed on Apple M4; other chips still need device testing.
+
+## Signed releases
+
+```sh
+tools/package-release.zsh notarized YYYY-MM-DD
+```
+
+This builds a fresh Release executable, strips local/debug symbols, signs it with
+a Developer ID Application identity, enables Hardened Runtime, and obtains a
+secure timestamp. The ZIP contains one root executable named `verusmetal`, with
+its Metal library embedded. The script validates architecture, dependencies,
+signature and independent CPU/GPU vectors, runs an isolated benchmark, and submits
+the ZIP to Apple's notary service. It requires `Accepted` and a Gatekeeper ticket
+assessment before producing the final archive under `Distribution/`.
+
+Use `VERUSMETAL_DEVELOPER_ID_APPLICATION` to select an installed signing identity
+when more than one exists. `VERUSMETAL_NOTARY_PROFILE` selects an existing Keychain
+profile; its default name is `verusmetal-notary`. Credentials are never stored in
+the repository. A raw CLI cannot be stapled like an app bundle; Gatekeeper may
+describe the ticket-validated executable as valid code that is not an app.
+
+The script also preserves the notary response/log, writes a ZIP checksum, and
+refreshes the ignored `Distribution/verusmetal` executable. It refuses to overwrite
+an existing versioned ZIP. `ad-hoc` mode is available for local packaging tests;
+those archives are not notarized releases. Publication is a separate step and
+must include access to the corresponding source and license.
 
 ## Verification
 
@@ -36,7 +64,8 @@ make sanitize-v22
 
 The unit suite covers 148 independent digests, partial GPU groups, target
 boundaries, nonce bounds, solution normalization, stale jobs and lifecycle
-handling. The integration test starts a local TCP server, checks CPU-verified
+handling. The integration target first tests the built CLI's help, strict parsing,
+batch alias and JSON rate accounting. The pool test starts a local TCP server, checks CPU-verified
 submissions, changes jobs, disconnects, reconnects and probes the loopback API.
 To exercise terminal refreshes and width handling after the integration build:
 

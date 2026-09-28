@@ -13,9 +13,10 @@ struct Arguments {
         var flags = Set<String>()
         var index = 1
         while index < raw.count {
-            let item = raw[index]
+            let item = raw[index] == "-h" ? "--help" : raw[index]
             guard item.hasPrefix("--") else { throw CLIError.invalidArgument(item) }
-            let key = String(item.dropFirst(2))
+            let name = String(item.dropFirst(2))
+            let key = name == "batch" ? "batch-nonces" : name
             guard !key.isEmpty else { throw CLIError.invalidArgument(item) }
             guard values[key] == nil, !flags.contains(key) else {
                 throw CLIError.invalidArgument("duplicate option --\(key)")
@@ -100,18 +101,70 @@ enum CLIError: Error, LocalizedError {
     }
 }
 
+let version = "0.1.0"
+
+func commandUsage(_ command: String) -> String? {
+    switch command {
+    case "devices":
+        return """
+          verusmetal devices [--json]
+
+        List Metal devices. JSON includes name, unifiedMemory and recommendedWorkingSetBytes.
+        """
+    case "benchmark":
+        return """
+          verusmetal benchmark [--duration 10] [--batch-nonces 4096] [--json]
+
+        Measure full VerusHash v2.2 on a synthetic 1,487-byte input after warmup.
+        Duration: 1...3600 seconds. Batch: 1...32768 nonces; --batch is an alias.
+        JSON rates are hashes/second; text rates are MH/s. No pool connection is made.
+        """
+    case "verify":
+        return """
+          verusmetal verify --fixtures tests/v22-vectors.json
+
+        Check independent reference digests on CPU and GPU with Metal validation.
+        The fixture file is required and is not embedded in the executable.
+        """
+    case "mine":
+        return """
+          verusmetal mine --config Config/local.json [options]
+          verusmetal mine --pool stratum+ssl://host:port --wallet address [options]
+
+        Options:
+          --pool URL                  Override the configured Stratum endpoint
+          --wallet ADDRESS            Override the configured Verus transparent address
+          --worker NAME               ASCII alphanumeric, 1...64 bytes (default: m4)
+          --batch-nonces N            Nonces per dispatch, 1...32768 (default: 4096)
+          --batch N                   Compatibility alias for --batch-nonces
+          --duration SECONDS          Stop after 1...604800 seconds (default: unlimited)
+          --stop-after-shares N       Stop after 1...1000000 accepted shares
+          --stats-file PATH           Append JSONL telemetry (default: disabled)
+          --stats-interval SECONDS    Terminal updates, 1...3600 (default: 10)
+          --telemetry-interval SECONDS  JSONL snapshots, 1...3600 (default: 30)
+          --api-bind 127.0.0.1:4079   Enable the loopback status API (default: disabled)
+
+        CLI pool, wallet and worker settings override the configuration file.
+        The password is VERUSMETAL_POOL_PASSWORD or "x" and is never logged.
+        TLS uses system certificate validation. No automatic plaintext fallback.
+        """
+    default: return nil
+    }
+}
+
 let usage = """
-VerusMetal 0.1.0 — Apple Silicon VerusHash v2.2 miner
+VerusMetal \(version) — Apple Silicon VerusHash v2.2 miner
 
-  verusmetal devices
-  verusmetal benchmark [--duration 10] [--batch 4096]
+Usage:
+  verusmetal devices [--json]
+  verusmetal benchmark [--duration 10] [--batch-nonces 4096] [--json]
   verusmetal verify --fixtures tests/v22-vectors.json
-  verusmetal mine --config Config/local.json [--duration SECONDS]
-  verusmetal mine --pool stratum+ssl://host:port --wallet address [--worker m4]
-                 [--batch 4096] [--stats-file path] [--stats-interval 10]
-                 [--telemetry-interval 30]
-                 [--api-bind 127.0.0.1:4079] [--stop-after-shares N]
+  verusmetal mine --config Config/local.json [options]
+  verusmetal mine --pool stratum+ssl://host:port --wallet address [options]
+  verusmetal --version
 
+Use verusmetal COMMAND --help for command options; -h is also accepted.
+--batch remains an alias for --batch-nonces. Do not supply both names together.
 The password is VERUSMETAL_POOL_PASSWORD or "x" and is never logged.
 TLS uses system certificate validation. No automatic plaintext fallback.
 """

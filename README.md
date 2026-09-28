@@ -14,6 +14,15 @@ in a 115-second test on 2026-09-27, at 1.038 MH/s effective throughput. This is 
 short functional test, not a long-term stability or performance guarantee.
 [Validation and evidence](Docs/VALIDATION.md).
 
+## Download
+
+A Developer ID signed and notarized arm64 executable is available from the
+[VerusMetal page](https://ios.gekko.de/verusmetal), with its SHA-256 checksum and
+corresponding source. Extract the ZIP and run `./verusmetal --help` from Terminal.
+Requires Apple Silicon and macOS 27 or later; Xcode is only needed to build from
+source. See the [2026-09-28 release notes](Docs/releases/2026-09-28.md) for artifact
+identity, validation and limits.
+
 ## Requirements and build
 
 - Apple Silicon Mac running macOS 27 or later.
@@ -27,6 +36,7 @@ Run all commands from the repository root:
 make miner
 ./build/miner/Build/Products/Release/verusmetal devices
 ./build/miner/Build/Products/Release/verusmetal verify --fixtures tests/v22-vectors.json
+./build/miner/Build/Products/Release/verusmetal --help
 ```
 
 `project.yml` generates `VerusMetal.xcodeproj`; generated projects and build
@@ -53,14 +63,14 @@ caffeinate -i ./verusmetal mine \
   --pool stratum+tcp://eu.luckpool.net:3956 \
   --wallet YOUR_VERUS_TRANSPARENT_ADDRESS \
   --worker m4 \
-  --batch 4096 \
+  --batch-nonces 4096 \
   --stats-file verusmetal.jsonl \
   --stats-interval 240
 ```
 
 `caffeinate -i` prevents idle system sleep while the miner runs. Stop with Ctrl-C.
-VerusMetal currently has no `--profile` or `--prebuild` options. It uses the
-optimized GPU kernel directly and does not prebuild a mining dataset.
+VerusMetal uses the optimized GPU kernel directly and does not prebuild a mining
+dataset. See the [command-line reference](Docs/CLI.md) for all supported options.
 
 ## Mining
 
@@ -82,7 +92,8 @@ is `m4`. This endpoint uses plaintext TCP, explicitly selected by its
 
 Use Ctrl-C or SIGTERM to stop. Add `--duration 180 --stop-after-shares 2` for a
 bounded test; it stops at the time limit or after two accepted shares, whichever
-comes first. The default batch is 4,096 hashes (`--batch`).
+comes first. The default batch is 4,096 hashes (`--batch-nonces`); `--batch` remains
+a compatibility alias. Supply only one of these option names.
 
 For another pool, copy `Config/example.json` to `Config/local.json` and fill in
 its endpoint and your address. `make mine` builds and uses `Config/local.json`.
@@ -103,9 +114,14 @@ are described in [protocol notes](Docs/PROTOCOL.md).
 
 ```sh
 make test-miner         # XCTest, 148 independent vectors, Metal validation
-make integration-miner # Synthetic local pool, reconnect and status API checks
+make integration-miner # CLI, synthetic local pool, reconnect and status API checks
 make sanitize-v22      # CPU AddressSanitizer and UndefinedBehaviorSanitizer
 ```
+
+For scripts, `devices --json` returns device information and
+`benchmark --duration 10 --batch-nonces 4096 --json` returns measured rates in
+hashes per second. Use `--version` to print the CLI version and `COMMAND --help`
+for command-specific usage.
 
 These checks do not contact an external mining pool. CPU/GPU agreement alone is
 not an independent oracle; reference-vector provenance is recorded with the
@@ -144,6 +160,9 @@ remain unresolved rather than being counted as accepted.
 The [research index](Docs/research/README.md) covers Haraka screening, register
 pressure, instruction optimization and parallelism. Historical hash rates refer
 to their stated workloads and must not be compared directly with mining rates.
+
+See [contributing](Docs/CONTRIBUTING.md) for change validation and bug reports, and
+the [publication review](Docs/PUBLIC-REVIEW.md) for the reviewed source and history.
 
 GPLv3: [LICENSE](LICENSE). The separate Haraka screening reference carries its
 [MIT notice](vendor/HARAKA-LICENSE); it is not linked into the miner.

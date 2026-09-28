@@ -128,7 +128,7 @@ thread=threading.Thread(target=serve,daemon=True);thread.start()
 log=ROOT/'build/setup/local-pool-events.jsonl'
 if log.exists():log.unlink()
 command=[str(BINARY),'mine','--pool',f'stratum+tcp://127.0.0.1:{port}',
-    '--wallet',WALLET,'--worker','m4','--batch','64','--duration','15','--stop-after-shares','2',
+    '--wallet',WALLET,'--worker','m4','--batch-nonces','64','--duration','15','--stop-after-shares','2',
     '--stats-file',str(log),'--stats-interval','240','--telemetry-interval','1','--api-bind',f'127.0.0.1:{api_port}']
 if options.terminal_width is None:
     captured=subprocess.run(command,capture_output=True,timeout=25)

@@ -107,6 +107,7 @@ test-miner:
 integration-miner: miner
 	mkdir -p build/setup
 	$(CXX) -O3 -std=c++20 -mcpu=native -dynamiclib src/v22/cpu.cpp -o build/setup/libverus-check.dylib
+	python3 tests/test_cli.py
 	python3 tests/test_pool_integration.py
 
 mine: miner

@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible problem with the CLI, hashing or pool protocol.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Replace wallets, worker identifiers, passwords, private hostnames and local paths with placeholders. Do not attach keys, seed phrases, local configuration files or unreviewed logs.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: CLI version, source revision if available, Mac chip, macOS and Xcode versions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include a command with placeholders. State whether this uses a local test or a real pool.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Relevant diagnostics
+      description: A small reviewed excerpt. For performance reports, include batch size, power mode, thermal state and measurement method.
+      render: text

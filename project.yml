@@ -26,7 +26,9 @@ settings:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
       DEBUG_INFORMATION_FORMAT: ""
       GCC_GENERATE_DEBUGGING_SYMBOLS: NO
+      GCC_OPTIMIZATION_LEVEL: "3"
       MTL_ENABLE_DEBUG_INFO: NO
+      MTL_FAST_MATH: YES
       SWIFT_COMPILATION_MODE: wholemodule
       SWIFT_OPTIMIZATION_LEVEL: "-O"
     Profile:
@@ -47,6 +49,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_OBJC_BRIDGING_HEADER: $(SRCROOT)/Sources/VerusMetalCore/Bridge.h
         OTHER_CPLUSPLUSFLAGS: "$(inherited) -mcpu=native"
+      configs:
+        Release:
+          OTHER_CPLUSPLUSFLAGS: "$(inherited) -mcpu=apple-m1"
   verusmetal:
     type: tool
     platform: macOS

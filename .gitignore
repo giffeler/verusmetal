@@ -1,6 +1,8 @@
 /build/
-/Config/local.json
-/Config/*.local.json
+# Keep all runtime configuration private; only explicit examples are public.
+/Config/*.json
+!/Config/example.json
+!/Config/*.example.json
 /Distribution/
 /DerivedData/
 *.xcuserstate
@@ -9,3 +11,9 @@ __pycache__/
 .DS_Store
 /VerusMetal.xcodeproj/
 *.py[cod]
+.env
+.env.*
+!/.env.example
+/*.log
+/*.jsonl
+*.gputrace/

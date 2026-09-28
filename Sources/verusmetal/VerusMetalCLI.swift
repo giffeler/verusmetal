@@ -12,20 +12,48 @@ private struct Configuration: Decodable {
     static func main() {
         do {
             let args = try Arguments(Array(CommandLine.arguments.dropFirst()))
+            if args.has("help"), let help = commandUsage(args.command) {
+                try args.validate(flagOptions: ["help"])
+                print(help)
+                return
+            }
             switch args.command {
-            case "help", "--help", "-h": print(usage)
-            case "devices":
+            case "help", "--help", "-h":
                 try args.validate()
-                for d in MetalVerusSolver.devices() { print("\(d.name) unified=\(d.unifiedMemory)") }
+                print(usage)
+            case "version", "--version":
+                try args.validate()
+                print("VerusMetal \(version)")
+            case "devices": try devices(args)
             case "verify": try verify(args)
             case "benchmark": try benchmark(args)
             case "mine": try mine(args)
             default: throw CLIError.invalidArgument(args.command)
             }
         } catch {
-            FileHandle.standardError.write(Data("error: \(error.localizedDescription)\n".utf8)); exit(1)
+            FileHandle.standardError.write(Data("error: \(error.localizedDescription)\nUse 'verusmetal --help' for usage.\n".utf8)); exit(2)
         }
     }
+
+    private static func printJSON<T: Encodable>(_ value: T) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        FileHandle.standardOutput.write(try encoder.encode(value))
+        print()
+    }
+
+    private static func devices(_ args: Arguments) throws {
+        try args.validate(flagOptions: ["json"])
+        let devices = MetalVerusSolver.devices()
+        if args.has("json") { try printJSON(devices) }
+        else if devices.isEmpty { print("No Metal devices found") }
+        else {
+            for device in devices {
+                print("\(device.name) unified=\(device.unifiedMemory) working-set=\(device.recommendedWorkingSetBytes) bytes")
+            }
+        }
+    }
+
     private static func verify(_ args: Arguments) throws {
         try args.validate(valueOptions:["fixtures"])
         struct Fixture: Decodable { let input: String; let digest: String }
@@ -40,9 +68,9 @@ private struct Configuration: Decodable {
         print("Verified \(file.vectors.count) independent CPU/GPU reference vectors with Metal validation.")
     }
     private static func benchmark(_ args: Arguments) throws {
-        try args.validate(valueOptions:["duration","batch"])
+        try args.validate(valueOptions:["duration","batch-nonces"],flagOptions:["json"])
         let duration = try args.int("duration",default:10,in:1...3600)
-        let solver = try MetalVerusSolver(batchSize:args.int("batch",default:4096,in:1...32768))
+        let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:4096,in:1...32768))
         let stats = StatisticsStore(); var accumulator = SearchStatisticsAccumulator()
         let input = [UInt8](repeating:0,count:1487)
         let warmup = ProcessInfo.processInfo.systemUptime
@@ -57,23 +85,50 @@ private struct Configuration: Decodable {
         }
         accumulator.flush()?.record(in:stats)
         let s = stats.snapshot()
-        print(String(format:"GPU %.3f MH/s | dispatch/wait %.3f MH/s | whole loop %.3f MH/s",
-                     Double(s.nonces)/s.gpuSeconds/1e6,s.averageHashrate/1e6,
-                     Double(s.nonces)/(ProcessInfo.processInfo.systemUptime-start)/1e6))
+        let elapsed = ProcessInfo.processInfo.systemUptime-start
+        let gpuHashrate = s.gpuSeconds > 0 ? Double(s.nonces)/s.gpuSeconds : 0
+        let effectiveHashrate = elapsed > 0 ? Double(s.nonces)/elapsed : 0
+        if args.has("json") {
+            struct Report: Encodable {
+                let schemaVersion: Int
+                let version: String
+                let device: String
+                let batchNonces: Int
+                let requestedDurationSeconds: Int
+                let durationSeconds: Double
+                let nonces: UInt64
+                let dispatches: UInt64
+                let gpuSeconds: Double
+                let commandWallSeconds: Double
+                let gpuHashrate: Double
+                let averageHashrate: Double
+                let effectiveHashrate: Double
+            }
+            try printJSON(Report(schemaVersion:1,version:version,device:solver.device.name,
+                                 batchNonces:solver.batchSize,requestedDurationSeconds:duration,
+                                 durationSeconds:elapsed,nonces:s.nonces,dispatches:s.dispatches,
+                                 gpuSeconds:s.gpuSeconds,commandWallSeconds:s.activeSeconds,
+                                 gpuHashrate:gpuHashrate,averageHashrate:s.averageHashrate,
+                                 effectiveHashrate:effectiveHashrate))
+        } else {
+            print(String(format:"GPU %.3f MH/s | dispatch/wait %.3f MH/s | whole loop %.3f MH/s",
+                         gpuHashrate/1e6,s.averageHashrate/1e6,effectiveHashrate/1e6))
+        }
     }
     private static func mine(_ args: Arguments) throws {
-        try args.validate(valueOptions:["config","pool","wallet","worker","batch","duration","stats-file","stats-interval","telemetry-interval","api-bind","stop-after-shares"])
+        try args.validate(valueOptions:["config","pool","wallet","worker","batch-nonces","duration","stats-file","stats-interval","telemetry-interval","api-bind","stop-after-shares"])
         var config: Configuration?
         if let path = args.string("config") { config = try JSONDecoder().decode(Configuration.self,from:Data(contentsOf:URL(fileURLWithPath:path))) }
-        guard let pool = args.string("pool",default:config?.pool), let wallet = args.string("wallet",default:config?.wallet),
-              VerusAddress.isValid(wallet) else { throw CLIError.invalidAddress }
+        guard let pool = args.string("pool",default:config?.pool) else { throw CLIError.missing("--pool or --config") }
+        guard let wallet = args.string("wallet",default:config?.wallet) else { throw CLIError.missing("--wallet or --config") }
+        guard VerusAddress.isValid(wallet) else { throw CLIError.invalidAddress }
         let worker = args.string("worker",default:config?.worker ?? "m4")!
         guard !worker.isEmpty, worker.utf8.count <= 64, worker.utf8.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }) else { throw CLIError.invalidArgument("worker must be ASCII alphanumeric") }
         let duration = try args.optionalInt("duration",in:1...604800)
         let shareLimit = try args.optionalInt("stop-after-shares",in:1...1_000_000)
         let interval = try args.int("stats-interval",default:10,in:1...3600)
         let telemetryInterval = try args.int("telemetry-interval",default:30,in:1...3600)
-        let solver = try MetalVerusSolver(batchSize:args.int("batch",default:4096,in:1...32768))
+        let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:4096,in:1...32768))
         let stats = StatisticsStore(); stats.update { $0.device = solver.device.name }
         let writer = JSONLEventWriter(path:args.string("stats-file"))
         if let error = writer.failure { throw error }

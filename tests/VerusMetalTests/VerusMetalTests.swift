@@ -177,8 +177,31 @@ final class LifecycleTests: XCTestCase {
     func testArgumentsAndAPIExposure() throws {
         XCTAssertThrowsError(try Arguments(["mine","--pool","a","--pool","b"]))
         let args = try Arguments(["mine","--batch","0"])
-        XCTAssertThrowsError(try args.int("batch",default:4096,in:1...32768))
+        XCTAssertThrowsError(try args.int("batch-nonces",default:4096,in:1...32768))
         XCTAssertThrowsError(try StatisticsHTTPServer(store:StatisticsStore()).start(bind:"0.0.0.0:4079"))
+    }
+
+    func testBatchAliasAndStrictOptions() throws {
+        for command in ["mine", "benchmark"] {
+            for option in ["--batch", "--batch-nonces"] {
+                let args = try Arguments([command, option, "8192"])
+                try args.validate(valueOptions: ["batch-nonces"])
+                XCTAssertEqual(try args.int("batch-nonces",default:4096,in:1...32768),8192)
+                for invalid in ["0", "32769", "invalid"] {
+                    let bad = try Arguments([command, option, invalid])
+                    XCTAssertThrowsError(try bad.int("batch-nonces",default:4096,in:1...32768))
+                }
+                XCTAssertThrowsError(try Arguments([command, option]).validate(valueOptions:["batch-nonces"]))
+            }
+            for pair in [["--batch", "--batch-nonces"], ["--batch-nonces", "--batch"], ["--batch-nonces", "--batch-nonces"]] {
+                XCTAssertThrowsError(try Arguments([command, pair[0], "4096", pair[1], "8192"]))
+            }
+        }
+        XCTAssertThrowsError(try Arguments(["devices", "--json", "true"]).validate(flagOptions:["json"]))
+        XCTAssertThrowsError(try Arguments(["devices", "--unknown"]).validate(flagOptions:["json"]))
+        let help = try Arguments(["mine", "-h"])
+        try help.validate(flagOptions:["help"])
+        XCTAssertTrue(help.has("help"))
     }
 }
 
