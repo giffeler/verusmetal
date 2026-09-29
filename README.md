@@ -10,10 +10,14 @@ share candidates before submission. The shared canonical hash core also
 supports correctness tests and CPU-versus-GPU benchmarks. The mining command
 uses the GPU for nonce search; it has no CPU mining mode.
 
-**Status:** development GPU miner tested on Apple M4. LuckPool accepted two shares
-in a 115-second test on 2026-09-27, at 1.038 MH/s effective throughput. This is a
-short functional test, not a long-term stability or performance guarantee.
-[Validation and evidence](Docs/VALIDATION.md).
+**Status:** experimental GPU miner tested on Apple M4. A maintainer-recorded
+8 h 06 min pool run on 2026-09-28–29 reached **3.415 MH/s effective throughput**
+with batch 32,768: 1,376 accepted shares, two rejected and none unresolved.
+All 973 thermal-state samples were nominal, and a connection reset recovered
+automatically. This is evidence for one tested Mac and workload, not a guarantee
+for every Apple Silicon model. The log does not fingerprint the executable.
+[Validation and evidence](Docs/VALIDATION.md) ·
+[Detailed long-run report](Docs/research/LONG-RUN-2026-09-29.md).
 
 ## Download
 
@@ -100,8 +104,11 @@ writes), plus 8 KiB of threadgroup masks per group. It uploads one 8,896-byte
 prepared state per job/prefix and resets mutation masks for every dispatch.
 
 Short, paired M4 tests measured about 2.23x higher dispatch throughput at equal
-batch size. This is local synthetic evidence; the published live-pool result above
-predates caching. See the [cache study](Docs/research/KEY-CACHING.md).
+batch size. This is controlled local synthetic evidence; the separate eight-hour
+pool run above measures sustained operation. Its comparison with earlier pool
+logs also includes different batch sizes and conditions. See the
+[cache study](Docs/research/KEY-CACHING.md) and
+[long-run report](Docs/research/LONG-RUN-2026-09-29.md).
 
 For another pool, copy `Config/example.json` to `Config/local.json` and fill in
 its endpoint and your address. `make mine` builds and uses `Config/local.json`.

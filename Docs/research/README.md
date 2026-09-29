@@ -30,6 +30,16 @@ Further within-thread parallelism experiments and an identical-source timing
 control are documented in [PARALLELISM.md](PARALLELISM.md) (`make test-parallel-v22`). None of
 these later variants replaces the current default.
 
+## Cached mining and sustained pool operation
+
+[KEY-CACHING.md](KEY-CACHING.md) records the independently written holes CLMUL,
+per-job preparation and cached GPU path, with approximately 2.23x higher command
+throughput at equal batch size in controlled paired tests.
+[LONG-RUN-2026-09-29.md](LONG-RUN-2026-09-29.md) adds a maintainer-recorded eight-hour
+M4 pool run at 3.415 MH/s effective, 1,376 accepted shares and a successful reconnect.
+These mining results use the 1,487-byte layout; the earlier benchmark workloads
+and historical results above retain their original scope.
+
 ## Historical Haraka architecture screening
 
 The original workload is **Haraka-512/256 v2**, not full VerusHash.

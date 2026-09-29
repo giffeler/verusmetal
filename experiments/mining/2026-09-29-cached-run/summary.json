@@ -1,0 +1,81 @@
+{
+  "source": "Distribution/verusmetal5.jsonl",
+  "bytes": 2596839,
+  "sha256": "2dfe1ab9f12db65ac45a377f1a5164ce6afb5cb5d8171d2b9e4e897ad1d7bc55",
+  "records": 5185,
+  "sessionID": "E0ADBC23-24A0-4641-BF9E-CDA536EF013A",
+  "startBerlin": "2026-09-28T21:24:24.166000+02:00",
+  "endBerlin": "2026-09-29T05:30:26.777000+02:00",
+  "durationSeconds": 29162.480207124958,
+  "hashes": 99589652480,
+  "dispatches": 3039235,
+  "effectiveMHs": 3.414992544278464,
+  "commandMHs": 3.4298922751814,
+  "gpuMHs": 3.539109203693858,
+  "gpuTimePercent": 96.49299718454999,
+  "commandOverheadPercent": 3.0725946851786787,
+  "outsideCommandsPercent": 0.43440813027133063,
+  "accepted": 1376,
+  "rejected": 2,
+  "verified": 1378,
+  "unresolved": 0,
+  "acceptancePercent": 99.85486211901306,
+  "intervalMHs": {
+    "min": 3.1448770312148473,
+    "p05": 3.325099466056439,
+    "median": 3.415660091211265,
+    "p95": 3.4885712010672014,
+    "max": 3.856868708608562,
+    "cvPercent": 1.7582513528095158
+  },
+  "firstHourMHs": 3.3917781637788624,
+  "lastHourMHs": 3.4497917852760316,
+  "responseMilliseconds": {
+    "median": 36.054708000000005,
+    "p95": 262.2167061999999,
+    "p99": 526.0852105700006,
+    "max": 842.225583
+  },
+  "thermalStates": {
+    "0": 973
+  },
+  "lowPowerMode": {
+    "false": 973
+  },
+  "eventCounts": {
+    "session_started": 1,
+    "performance_snapshot": 973,
+    "connected": 2,
+    "authorized": 2,
+    "target_changed": 4,
+    "job_received": 1445,
+    "share_submitted": 1378,
+    "share_accepted": 1376,
+    "share_rejected": 2,
+    "disconnected": 1,
+    "session_ended": 1
+  },
+  "shortBenchmarkDifferencePercent": -6.338988584188443,
+  "priorRuns": [
+    {
+      "file": "verusmetal2.jsonl",
+      "batch": 4096,
+      "effectiveMHs": 1.0455951317930265,
+      "newToOldRatio": 3.266075405709191
+    },
+    {
+      "file": "verusmetal3.jsonl",
+      "batch": 8192,
+      "effectiveMHs": 1.2557119992492782,
+      "newToOldRatio": 2.719566705040727
+    },
+    {
+      "file": "verusmetal4.jsonl",
+      "batch": 16384,
+      "effectiveMHs": 1.4067754863465638,
+      "newToOldRatio": 2.4275320244222462
+    }
+  ],
+  "binaryProvenance": "Maintainer identifies the updated miner; the log records neither binary version nor executable hash.",
+  "rawLogAvailability": "Retained locally at Distribution/verusmetal5.jsonl; not distributed in Git."
+}

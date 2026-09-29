@@ -48,10 +48,36 @@ The default batch is now 32,768. Paired, interleaved runs in both argument order
 measure approximately 2.23x end-to-end improvement at equal batch size; separate
 GPU durations and an identical-source control are retained in the
 [cache report](research/KEY-CACHING.md). These are bounded local measurements,
-not sustained or pool-accepted rates. No new live-pool test was authorized or run.
+not sustained or pool-accepted rates. No new live-pool test was run as part of
+that implementation study; the later maintainer-recorded run is documented below.
 CPU/hybrid mining remains excluded at the maintainer's request.
 
-## Live plaintext pool validation
+## Sustained pool operation (2026-09-28–29)
+
+The maintainer supplied `Distribution/verusmetal5.jsonl` from the updated miner.
+Analysis of the completed session found:
+
+- Apple M4, batch 32,768; 8 h 06 min 02.48 s, from 19:24:24 UTC on 28 September
+  to 03:30:26 UTC on 29 September (21:24–05:30 CEST).
+- 99,589,652,480 completed hashes in 3,039,235 full batches.
+- Effective / active-command / GPU-time rates: **3.415 / 3.430 / 3.539 MH/s**.
+- 1,378 CPU-verified submissions: **1,376 accepted, two rejected, zero unresolved**
+  (99.855% acceptance). Both code-21 rejections followed clean job changes during
+  the submission/response interval, consistent with shares becoming obsolete in
+  transit. The sanitized messages do not prove the exact server-side cause.
+- One peer connection reset; a new authorized job arrived about 1.3 seconds later.
+- All 973 thermal-state samples nominal, Low Power Mode off. No progressive
+  rate decline: approximately 3.392 MH/s in the first hour and 3.450 in the last.
+- Interval totals match final counters; every submission has a matching response.
+
+This adds sustained operation and pool-acceptance evidence for the updated miner
+identified by the maintainer. The log has no binary version/hash, pool endpoint,
+temperature, frequency or power measurements. It cannot identify the exact
+release artifact or establish energy efficiency or performance on other hardware.
+The raw log remains local and unchanged; its SHA-256 and derived summary are
+recorded in the [full report](research/LONG-RUN-2026-09-29.md).
+
+## Initial live plaintext pool validation (2026-09-27)
 
 On 2026-09-27, the explicitly selected `stratum+tcp://eu.luckpool.net:3956`
 endpoint authorized worker `m4`, delivered jobs and job changes, and accepted
