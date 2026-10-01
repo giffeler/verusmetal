@@ -130,13 +130,15 @@ private struct Configuration: Decodable {
         let shareLimit = try args.optionalInt("stop-after-shares",in:1...1_000_000)
         let interval = try args.int("stats-interval",default:10,in:1...3600)
         let telemetryInterval = try args.int("telemetry-interval",default:30,in:1...3600)
+        let console = MiningConsole()
+        defer { console.finish() }
+        console.startup("Preparing GPU...")
         let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:32768,in:1...32768))
         let stats = StatisticsStore(); stats.update { $0.device = solver.device.name }
         let writer = JSONLEventWriter(path:args.string("stats-file"))
         if let error = writer.failure { throw error }
-        let console = MiningConsole()
-        defer { console.finish() }
-        let coordinator = MiningCoordinator(stats:stats,writer:writer,batchSize:solver.batchSize,telemetryInterval:telemetryInterval,onMessage: { console.message($0) })
+        let coordinator = MiningCoordinator(stats:stats,writer:writer,batchSize:solver.batchSize,telemetryInterval:telemetryInterval,
+            onMessage: { console.message($0) }, onStartupStatus: { console.startup($0, snapshot: stats.snapshot()) })
         let client = try VerusStratumClient(url:pool,user:wallet+"."+worker,
                                            password:ProcessInfo.processInfo.environment["VERUSMETAL_POOL_PASSWORD"] ?? "x") { [weak coordinator] event in coordinator?.handle(event) }
         coordinator.configure(client:client)
@@ -156,9 +158,8 @@ private struct Configuration: Decodable {
         var nonceSequence: NonceSequence?
         var noncePrefix: [UInt8]?
         var accumulator = SearchStatisticsAccumulator()
-        coordinator.start()
         console.message("Mining on \(client.redactedHost), worker \(worker), device \(solver.device.name)")
-        console.status(stats.snapshot())
+        coordinator.start()
         do {
             while !coordinator.isStopped {
                 let now = ProcessInfo.processInfo.systemUptime

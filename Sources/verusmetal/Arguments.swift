@@ -101,7 +101,7 @@ enum CLIError: Error, LocalizedError {
     }
 }
 
-let version = "0.2.0"
+let version = "0.2.1"
 
 func commandUsage(_ command: String) -> String? {
     switch command {
@@ -140,7 +140,7 @@ func commandUsage(_ command: String) -> String? {
           --duration SECONDS          Stop after 1...604800 seconds (default: unlimited)
           --stop-after-shares N       Stop after 1...1000000 accepted shares
           --stats-file PATH           Append JSONL telemetry (default: disabled)
-          --stats-interval SECONDS    Terminal updates, 1...3600 (default: 10)
+          --stats-interval SECONDS    Mining statistics, 1...3600 (default: 10)
           --telemetry-interval SECONDS  JSONL snapshots, 1...3600 (default: 30)
           --api-bind 127.0.0.1:4079   Enable the loopback status API (default: disabled)
 

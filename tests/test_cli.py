@@ -22,7 +22,7 @@ def run(*arguments, success=True):
     return result.stdout
 
 
-assert run("--version").strip() == "VerusMetal 0.2.0"
+assert run("--version").strip() == "VerusMetal 0.2.1"
 for command in ["devices", "verify", "benchmark", "mine"]:
     assert f"verusmetal {command}" in run(command, "--help")
     assert run(command, "--help") == run(command, "-h")

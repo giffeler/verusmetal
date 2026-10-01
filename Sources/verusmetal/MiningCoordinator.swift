@@ -37,6 +37,7 @@ final class MiningCoordinator: @unchecked Sendable {
     private var reconnectGeneration: UInt64 = 0
     private var reconnectWorkItem: DispatchWorkItem?
     private let onMessage: @Sendable (String) -> Void
+    private let onStartupStatus: @Sendable (String?) -> Void
     private let batchSize: Int
     private let telemetryInterval: Int
     private var previousTelemetry: MinerSnapshot?
@@ -45,9 +46,11 @@ final class MiningCoordinator: @unchecked Sendable {
 
     init(stats: StatisticsStore, writer: JSONLEventWriter, reconnectDelay: TimeInterval = 1,
          batchSize: Int = 4096, telemetryInterval: Int = 30,
-         onMessage: @escaping @Sendable (String) -> Void = { print($0) }) {
+         onMessage: @escaping @Sendable (String) -> Void = { print($0) },
+         onStartupStatus: @escaping @Sendable (String?) -> Void = { _ in }) {
         self.stats = stats; self.writer = writer; self.reconnectDelay = reconnectDelay
         self.onMessage = onMessage
+        self.onStartupStatus = onStartupStatus
         self.batchSize = batchSize; self.telemetryInterval = telemetryInterval
     }
     func configure(client: any MiningStratumClient) {
@@ -59,6 +62,7 @@ final class MiningCoordinator: @unchecked Sendable {
         emit("session_started", ["device": stats.snapshot().device, "batch_size": String(batchSize),
                                  "telemetry_interval_seconds": String(telemetryInterval)])
         recordTelemetryLocked(kind: "initial")
+        onStartupStatus("Connecting to pool...")
         client?.connect()
     }
     func handle(_ event: StratumEvent) {
@@ -67,15 +71,21 @@ final class MiningCoordinator: @unchecked Sendable {
         switch event {
         case .connected:
             stats.update { $0.state = .connecting; $0.lastError = nil }; emit("connected")
+            onStartupStatus("Subscribing...")
+        case .subscribed:
+            onStartupStatus("Authorizing worker...")
         case .authorized:
             authorized = true; stats.update { $0.state = job == nil ? .authorized : .mining }
+            onStartupStatus(job == nil ? "Waiting for first job..." : nil)
             emit("authorized"); condition.broadcast()
         case .target(let target):
             latestTarget = target
             emit("target_changed", ["target_hex": target.bigEndianBytes.hex])
         case .job(let incoming):
+            let wasMining = authorized && job != nil
             job = incoming; reconnectAttempt = 0
             stats.update { $0.jobID = incoming.id; $0.jobs += 1; if authorized { $0.state = .mining } }
+            if authorized && !wasMining { onStartupStatus(nil) }
             emit("job_received", ["job":incoming.id, "generation":String(incoming.generation),
                                   "target_hex":incoming.target.bigEndianBytes.hex,
                                   "clean_jobs":String(incoming.cleanJobs)])
@@ -100,6 +110,7 @@ final class MiningCoordinator: @unchecked Sendable {
             emit("disconnected", ["reason":reason]); condition.broadcast()
             let token = reconnectGeneration
             let delay = min(30, reconnectDelay*pow(2,Double(min(reconnectAttempt,5))))
+            onStartupStatus("Reconnecting in \(Int(ceil(delay)))s...")
             reconnectAttempt += 1
             reconnectWorkItem?.cancel()
             let item = DispatchWorkItem { [weak self] in
@@ -109,6 +120,7 @@ final class MiningCoordinator: @unchecked Sendable {
                 let client = !self.stopped && self.reconnectGeneration == token ? self.client : nil
                 if let client {
                     self.stats.update { $0.reconnects += 1; $0.state = .connecting }
+                    self.onStartupStatus("Connecting to pool...")
                     client.connect()
                 }
             }

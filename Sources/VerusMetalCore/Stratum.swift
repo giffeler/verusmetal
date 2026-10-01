@@ -18,6 +18,7 @@ public struct ShareMetadata: Sendable {
 
 public enum StratumEvent: Sendable {
     case connected
+    case subscribed
     case authorized
     case disconnected(String)
     case target(UInt256)
@@ -179,7 +180,7 @@ public final class VerusStratumClient: @unchecked Sendable {
         case .ready:
             ready = true
             handler(.connected)
-            send(id: 1, method: "mining.subscribe", params: ["verusmetal/0.2.0"])
+            send(id: 1, method: "mining.subscribe", params: ["verusmetal/0.2.1"])
         case .waiting(let error): reportDisconnect(error.localizedDescription, connection: candidate)
         case .failed(let error): reportDisconnect(error.localizedDescription, connection: candidate)
         case .cancelled: reportDisconnect("cancelled", connection: candidate)
@@ -291,6 +292,7 @@ public final class VerusStratumClient: @unchecked Sendable {
             let parsed = try Self.decodeSubscription(message["result"])
             extraNoncePrefix = parsed
             if let lastJobParams { try processJob(lastJobParams) }
+            handler(.subscribed)
             send(id: 2, method: "mining.authorize", params: [user, password])
         } else if id == 2 {
             let accepted = (message["result"] as? Bool) ?? false

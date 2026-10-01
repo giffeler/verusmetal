@@ -92,14 +92,18 @@ def serve():
                 prefix = '01020304' if session==0 else '05060708'
                 work=job('current'+str(session),8 if session==0 else 4)
                 sub=json.loads(stream.readline());assert sub['method']=='mining.subscribe'
+                if session == 0:time.sleep(1.2)
                 send(sock,{'id':sub['id'],'result':[None,prefix],'error':None},fragment=True)
                 auth=json.loads(stream.readline());assert auth['method']=='mining.authorize'
                 assert auth['params']==[WALLET+'.m4','x']
                 send(sock,{'method':'mining.set_target','params':[f'{TARGET:064x}']})
-                # A job can arrive before authorization, and a clean job can supersede it.
-                send(sock,{'method':'mining.notify','params':job('superseded',7)})
+                # Exercise both authorization/job orders and a clean superseding job.
+                if session == 0:
+                    send(sock,{'id':auth['id'],'result':True,'error':None})
+                    time.sleep(2.1)
+                if session == 1:send(sock,{'method':'mining.notify','params':job('superseded',7)})
                 send(sock,{'method':'mining.notify','params':work})
-                send(sock,{'id':auth['id'],'result':True,'error':None})
+                if session == 1:send(sock,{'id':auth['id'],'result':True,'error':None})
                 while True:
                     line=stream.readline()
                     if not line:raise AssertionError('client closed before submitting')
@@ -168,6 +172,14 @@ else:
     assert 'shares=2/0' in output and 'stopped' in output,repr(output)
 thread.join(timeout=1)
 print(result.stdout);print(result.stderr)
+for phase in ['Preparing GPU...', 'Connecting to pool...', 'Subscribing...',
+              'Authorizing worker...', 'Waiting for first job...', 'Reconnecting in 1s...']:
+    assert phase in result.stdout,(phase,result.stdout)
+assert ' mining' in result.stdout, 'mining status must precede the 240-second stats interval'
+if options.terminal_width is not None:
+    assert re.search(r'(Subscribing|Waiting for first job)\.\.\. [1-9]\d*s',result.stdout),result.stdout
+else:
+    assert result.stdout.count('Waiting for first job...') == 1
 assert 'Share accepted' not in result.stdout
 assert not errors,errors
 assert result.returncode==0,result.returncode

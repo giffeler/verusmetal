@@ -85,9 +85,15 @@ override the matching fields. Other settings are CLI options only.
 | `--duration SECONDS` | Unlimited | Integer from 1 to 604,800 |
 | `--stop-after-shares N` | Unlimited | Integer from 1 to 1,000,000 accepted shares |
 | `--stats-file PATH` | Disabled | Append session-tagged JSONL; parent directory must exist |
-| `--stats-interval SECONDS` | `10` | Terminal updates every 1–3,600 seconds |
+| `--stats-interval SECONDS` | `10` | Mining statistics every 1–3,600 seconds |
 | `--telemetry-interval SECONDS` | `30` | JSONL snapshots every 1–3,600 seconds |
 | `--api-bind ADDRESS:PORT` | Disabled | IPv4 loopback only; for example `127.0.0.1:4079` |
+
+Startup reports GPU preparation, pool connection, subscription, worker authorization
+and waiting for the first job as they happen. Terminal wait times refresh every
+second, independently of `--stats-interval`; redirected output records each phase
+once without cursor control. Mining statistics appear immediately when an authorized
+job is available. Reconnects show the retry delay and subsequent connection phases.
 
 The first reached duration/share limit ends the session. Ctrl-C or SIGTERM also
 stops mining. Every GPU-found share is verified on the CPU before submission.
