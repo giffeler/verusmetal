@@ -7,6 +7,8 @@ struct Arguments {
     private let flags: Set<String>
 
     init(_ raw: [String]) throws(CLIError) {
+        let leadingQuiet = raw.prefix(while: { $0 == "--quiet" }).count
+        let raw = Array(raw.dropFirst(leadingQuiet)) + Array(repeating: "--quiet", count: leadingQuiet)
         guard let command = raw.first else { throw CLIError.usage }
         self.command = command
         var values: [String: String] = [:]
@@ -21,7 +23,9 @@ struct Arguments {
             guard values[key] == nil, !flags.contains(key) else {
                 throw CLIError.invalidArgument("duplicate option --\(key)")
             }
-            if index + 1 < raw.count, !raw[index + 1].hasPrefix("--") {
+            if key == "quiet" {
+                flags.insert(key); index += 1
+            } else if index + 1 < raw.count, !raw[index + 1].hasPrefix("--") {
                 values[key] = raw[index + 1]; index += 2
             } else {
                 flags.insert(key); index += 1
@@ -70,6 +74,7 @@ struct Arguments {
         valueOptions: Set<String> = [],
         flagOptions: Set<String> = []
     ) throws(CLIError) {
+        let flagOptions = flagOptions.union(["quiet"])
         for key in flags.sorted() {
             if valueOptions.contains(key) { throw CLIError.missing("--\(key) value") }
             guard flagOptions.contains(key) else { throw CLIError.invalidArgument("--\(key)") }
@@ -101,7 +106,7 @@ enum CLIError: Error, LocalizedError {
     }
 }
 
-let version = "0.2.1"
+let version = "0.2.2"
 
 func commandUsage(_ command: String) -> String? {
     switch command {
@@ -140,7 +145,8 @@ func commandUsage(_ command: String) -> String? {
           --duration SECONDS          Stop after 1...604800 seconds (default: unlimited)
           --stop-after-shares N       Stop after 1...1000000 accepted shares
           --stats-file PATH           Append JSONL telemetry (default: disabled)
-          --stats-interval SECONDS    Mining statistics, 1...3600 (default: 10)
+          --stats-interval SECONDS    Maximum statistics interval, 1...3600 (default: 10)
+          --quiet                    Suppress stdout and stderr; exit codes are unchanged
           --telemetry-interval SECONDS  JSONL snapshots, 1...3600 (default: 30)
           --api-bind 127.0.0.1:4079   Enable the loopback status API (default: disabled)
 
@@ -164,6 +170,7 @@ Usage:
   verusmetal --version
 
 Use verusmetal COMMAND --help for command options; -h is also accepted.
+--quiet is accepted before or after any command and suppresses stdout and stderr.
 --batch remains an alias for --batch-nonces. Do not supply both names together.
 The password is VERUSMETAL_POOL_PASSWORD or "x" and is never logged.
 TLS uses system certificate validation. No automatic plaintext fallback.

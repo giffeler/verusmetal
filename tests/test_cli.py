@@ -22,7 +22,7 @@ def run(*arguments, success=True):
     return result.stdout
 
 
-assert run("--version").strip() == "VerusMetal 0.2.1"
+assert run("--version").strip() == "VerusMetal 0.2.2"
 for command in ["devices", "verify", "benchmark", "mine"]:
     assert f"verusmetal {command}" in run(command, "--help")
     assert run(command, "--help") == run(command, "-h")
@@ -47,3 +47,13 @@ for option in ["--batch-nonces", "--batch"]:
         assert math.isfinite(report[rate]) and report[rate] > 0
         assert math.isclose(report[rate], report["nonces"] / report[seconds], rel_tol=1e-9)
 print("CLI passed: help, version, strict errors, device JSON, batch alias and benchmark rate accounting.")
+
+for arguments, code in [
+    (["--quiet", "--version"], 0), (["devices", "--json", "--quiet"], 0),
+    (["mine", "--help", "--quiet"], 0), (["--quiet", "mine"], 2),
+    (["mine", "--unknown", "--quiet"], 2),
+    (["--quiet", "devices", "--quiet"], 2), (["devices", "--quiet", "true"], 2),
+]:
+    result = subprocess.run([str(BINARY), *arguments], capture_output=True, timeout=20)
+    assert result.returncode == code and result.stdout == result.stderr == b"", (arguments, result)
+print("Quiet mode passed: success, help, errors, flag placement and unchanged exit codes.")

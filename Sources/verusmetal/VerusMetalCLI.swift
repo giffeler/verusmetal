@@ -11,7 +11,9 @@ private struct Configuration: Decodable {
 @main enum VerusMetalCLI {
     static func main() {
         do {
-            let args = try Arguments(Array(CommandLine.arguments.dropFirst()))
+            let raw = Array(CommandLine.arguments.dropFirst())
+            if raw.contains("--quiet") { try silenceOutput() }
+            let args = try Arguments(raw)
             if args.has("help"), let help = commandUsage(args.command) {
                 try args.validate(flagOptions: ["help"])
                 print(help)
@@ -32,6 +34,16 @@ private struct Configuration: Decodable {
             }
         } catch {
             FileHandle.standardError.write(Data("error: \(error.localizedDescription)\nUse 'verusmetal --help' for usage.\n".utf8)); exit(2)
+        }
+    }
+
+    /// Redirect before parsing so quiet mode also covers errors and library output.
+    private static func silenceOutput() throws {
+        let sink = open("/dev/null", O_WRONLY)
+        guard sink >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(sink) }
+        guard dup2(sink, STDOUT_FILENO) >= 0, dup2(sink, STDERR_FILENO) >= 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
     }
 
@@ -130,7 +142,7 @@ private struct Configuration: Decodable {
         let shareLimit = try args.optionalInt("stop-after-shares",in:1...1_000_000)
         let interval = try args.int("stats-interval",default:10,in:1...3600)
         let telemetryInterval = try args.int("telemetry-interval",default:30,in:1...3600)
-        let console = MiningConsole()
+        let console = MiningConsole(statsInterval: Double(interval))
         defer { console.finish() }
         console.startup("Preparing GPU...")
         let solver = try MetalVerusSolver(batchSize:args.int("batch-nonces",default:32768,in:1...32768))
@@ -138,7 +150,7 @@ private struct Configuration: Decodable {
         let writer = JSONLEventWriter(path:args.string("stats-file"))
         if let error = writer.failure { throw error }
         let coordinator = MiningCoordinator(stats:stats,writer:writer,batchSize:solver.batchSize,telemetryInterval:telemetryInterval,
-            onMessage: { console.message($0) }, onStartupStatus: { console.startup($0, snapshot: stats.snapshot()) })
+            onMessage: { console.message($0) }, onStartupStatus: { console.startup($0) })
         let client = try VerusStratumClient(url:pool,user:wallet+"."+worker,
                                            password:ProcessInfo.processInfo.environment["VERUSMETAL_POOL_PASSWORD"] ?? "x") { [weak coordinator] event in coordinator?.handle(event) }
         coordinator.configure(client:client)
@@ -152,7 +164,6 @@ private struct Configuration: Decodable {
         }
         defer { signals.forEach { $0.cancel() } }
         let start = ProcessInfo.processInfo.systemUptime
-        var lastStatus = start
         var lastTelemetry = start
         // A session-wide counter avoids reusing search space when a target changes.
         var nonceSequence: NonceSequence?
@@ -169,8 +180,9 @@ private struct Configuration: Decodable {
                     accumulator.flush()?.record(in:stats)
                     coordinator.recordTelemetry(); lastTelemetry = now
                 }
-                if now-lastStatus >= Double(interval) {
-                    console.status(stats.snapshot()); lastStatus = now
+                if console.statusDue(at: now) {
+                    accumulator.flush()?.record(in: stats)
+                    console.status(stats.snapshot())
                 }
                 guard let job = coordinator.nextWork() else { continue }
                 if noncePrefix != job.extraNoncePrefix {

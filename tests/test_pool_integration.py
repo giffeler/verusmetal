@@ -25,7 +25,10 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--terminal-width', type=int, help='Exercise status output in a pseudo-terminal')
+parser.add_argument('--quiet', action='store_true', help='Verify silent mining with telemetry and API enabled')
 options = parser.parse_args()
+if options.quiet and options.terminal_width is not None:
+    parser.error('quiet and terminal-width checks run separately')
 if options.terminal_width is not None and options.terminal_width < 2:
     parser.error('terminal width must be at least 2')
 BINARY = ROOT / 'build/miner/Build/Products/Release/verusmetal'
@@ -96,7 +99,7 @@ def serve():
                 send(sock,{'id':sub['id'],'result':[None,prefix],'error':None},fragment=True)
                 auth=json.loads(stream.readline());assert auth['method']=='mining.authorize'
                 assert auth['params']==[WALLET+'.m4','x']
-                send(sock,{'method':'mining.set_target','params':[f'{TARGET:064x}']})
+                send(sock,{'method':'mining.set_target','params':[f'{1:064x}']})
                 # Exercise both authorization/job orders and a clean superseding job.
                 if session == 0:
                     send(sock,{'id':auth['id'],'result':True,'error':None})
@@ -104,6 +107,9 @@ def serve():
                 if session == 1:send(sock,{'method':'mining.notify','params':job('superseded',7)})
                 send(sock,{'method':'mining.notify','params':work})
                 if session == 1:send(sock,{'id':auth['id'],'result':True,'error':None})
+                # Allow a real rate sample before any share; no easy-target backpressure.
+                time.sleep(1.2)
+                send(sock,{'method':'mining.set_target','params':[f'{TARGET:064x}']})
                 while True:
                     line=stream.readline()
                     if not line:raise AssertionError('client closed before submitting')
@@ -134,6 +140,7 @@ if log.exists():log.unlink()
 command=[str(BINARY),'mine','--pool',f'stratum+tcp://127.0.0.1:{port}',
     '--wallet',WALLET,'--worker','m4','--batch-nonces','64','--duration','15','--stop-after-shares','2',
     '--stats-file',str(log),'--stats-interval','240','--telemetry-interval','1','--api-bind',f'127.0.0.1:{api_port}']
+if options.quiet:command.append('--quiet')
 if options.terminal_width is None:
     captured=subprocess.run(command,capture_output=True,timeout=25)
     result=subprocess.CompletedProcess(command,captured.returncode,captured.stdout.decode(),captured.stderr.decode())
@@ -172,14 +179,18 @@ else:
     assert 'shares=2/0' in output and 'stopped' in output,repr(output)
 thread.join(timeout=1)
 print(result.stdout);print(result.stderr)
-for phase in ['Preparing GPU...', 'Connecting to pool...', 'Subscribing...',
-              'Authorizing worker...', 'Waiting for first job...', 'Reconnecting in 1s...']:
-    assert phase in result.stdout,(phase,result.stdout)
-assert ' mining' in result.stdout, 'mining status must precede the 240-second stats interval'
-if options.terminal_width is not None:
-    assert re.search(r'(Subscribing|Waiting for first job)\.\.\. [1-9]\d*s',result.stdout),result.stdout
+if options.quiet:
+    assert result.stdout == result.stderr == '', (result.stdout,result.stderr)
 else:
-    assert result.stdout.count('Waiting for first job...') == 1
+    for phase in ['Preparing GPU...', 'Connecting to pool...', 'Subscribing...',
+                  'Authorizing worker...', 'Waiting for first job...', 'Reconnecting in 1s...']:
+        assert phase in result.stdout,(phase,result.stdout)
+    rates=re.findall(r'(?:current=)?([0-9.]+)(?: avg=[0-9.]+ effective=[0-9.]+)? MH/s[^\r\n]* mining',result.stdout)
+    assert sum(float(rate)>0 for rate in rates)>=2, 'a nonzero rate must appear promptly on both connections'
+    if options.terminal_width is not None:
+        assert re.search(r'(Subscribing|Waiting for first job)\.\.\. [1-9]\d*s',result.stdout),result.stdout
+    else:
+        assert result.stdout.count('Waiting for first job...') == 1
 assert 'Share accepted' not in result.stdout
 assert not errors,errors
 assert result.returncode==0,result.returncode

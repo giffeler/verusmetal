@@ -180,7 +180,7 @@ public final class VerusStratumClient: @unchecked Sendable {
         case .ready:
             ready = true
             handler(.connected)
-            send(id: 1, method: "mining.subscribe", params: ["verusmetal/0.2.1"])
+            send(id: 1, method: "mining.subscribe", params: ["verusmetal/0.2.2"])
         case .waiting(let error): reportDisconnect(error.localizedDescription, connection: candidate)
         case .failed(let error): reportDisconnect(error.localizedDescription, connection: candidate)
         case .cancelled: reportDisconnect("cancelled", connection: candidate)

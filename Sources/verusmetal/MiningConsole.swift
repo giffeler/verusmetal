@@ -11,8 +11,10 @@ final class MiningConsole: @unchecked Sendable {
     private var startupText: String?
     private var startupSince = ProcessInfo.processInfo.systemUptime
     private var timer: DispatchSourceTimer?
+    private var schedule: MiningStatusSchedule
 
-    init() {
+    init(statsInterval: TimeInterval) {
+        schedule = MiningStatusSchedule(maximumInterval: statsInterval)
         if terminal {
             let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "dev.verusmetal.startup-status"))
             timer.schedule(deadline: .now() + 1, repeating: 1)
@@ -23,12 +25,18 @@ final class MiningConsole: @unchecked Sendable {
     }
 
     /// Phase changes are immediate; only terminals receive periodic wait updates.
-    func startup(_ text: String?, snapshot: MinerSnapshot? = nil) {
+    func startup(_ text: String?) {
         lock.lock(); defer { lock.unlock() }
-        startupText = text
+        startupText = text ?? "Starting GPU search..."
         startupSince = ProcessInfo.processInfo.systemUptime
-        if text != nil { writeStartup() }
-        else if let snapshot { writeStatus(snapshot) }
+        if text == nil { schedule.start(at: startupSince) }
+        else { schedule.stop() }
+        writeStartup()
+    }
+
+    func statusDue(at now: TimeInterval) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return schedule.consumeIfDue(at: now)
     }
 
     private func refreshStartup() {
@@ -46,8 +54,9 @@ final class MiningConsole: @unchecked Sendable {
     func status(_ snapshot: MinerSnapshot) {
         lock.lock(); defer { lock.unlock() }
         guard snapshot.state == .mining || snapshot.state == .stopped || snapshot.state == .failed else { return }
-        guard startupText == nil || snapshot.state == .stopped || snapshot.state == .failed else { return }
-        if snapshot.state == .stopped || snapshot.state == .failed { startupText = nil }
+        guard schedule.isActive || snapshot.state == .stopped || snapshot.state == .failed else { return }
+        if snapshot.state == .mining && snapshot.nonces == 0 { return }
+        startupText = nil
         writeStatus(snapshot)
     }
 
@@ -80,6 +89,7 @@ final class MiningConsole: @unchecked Sendable {
     func finish() {
         lock.lock(); defer { lock.unlock() }
         timer?.cancel(); timer = nil
+        schedule.stop()
         startupText = nil
         if statusVisible { write("\n"); statusVisible = false }
     }

@@ -25,7 +25,7 @@ A Developer ID signed and notarized arm64 executable is available from the
 [VerusMetal page](https://ios.gekko.de/verusmetal), with its SHA-256 checksum and
 corresponding source. Extract the ZIP and run `./verusmetal --help` from Terminal.
 Requires Apple Silicon and macOS 27 or later; Xcode is only needed to build from
-source. See the [0.2.1 release notes](Docs/releases/0.2.1.md) for artifact
+source. See the [0.2.2 release notes](Docs/releases/0.2.2.md) for artifact
 identity, validation and limits.
 
 ## Requirements and build

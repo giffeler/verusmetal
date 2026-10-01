@@ -4,7 +4,9 @@ Run `verusmetal --help` for a summary, `verusmetal COMMAND --help` (or `-h`) for
 command-specific usage, and `verusmetal --version` for the CLI version. Commands
 use long options with a separate value: `--duration 10`, not `--duration=10`.
 Unknown options, duplicate options, missing values and values supplied to flags
-are errors. Success exits with status 0; argument or runtime errors exit with
+are errors. Global `--quiet`, before or after any command, suppresses all stdout
+and stderr, including help, JSON and errors. Exit codes, JSONL files and the
+loopback API are unchanged. Success exits with status 0; argument or runtime errors exit with
 status 2 and write diagnostics to standard error.
 
 ## Devices
@@ -74,6 +76,11 @@ Alternatively, provide `--pool URL --wallet ADDRESS`. Configuration JSON contain
 required `pool` and `wallet` strings and an optional `worker` string. CLI values
 override the matching fields. Other settings are CLI options only.
 
+Pass the bare address to `--wallet` and the worker separately to `--worker`.
+VerusMetal sends `WALLET.WORKER` in both Stratum authorization and share submission,
+matching [LuckPool's documented format](https://luckpool.net/verus/connect.html).
+The name shown on a pool website also depends on its server and display logic.
+
 | Option | Default | Accepted values or behavior |
 | --- | --- | --- |
 | `--config PATH` | None | Read pool, wallet and optional worker from JSON |
@@ -85,15 +92,18 @@ override the matching fields. Other settings are CLI options only.
 | `--duration SECONDS` | Unlimited | Integer from 1 to 604,800 |
 | `--stop-after-shares N` | Unlimited | Integer from 1 to 1,000,000 accepted shares |
 | `--stats-file PATH` | Disabled | Append session-tagged JSONL; parent directory must exist |
-| `--stats-interval SECONDS` | `10` | Mining statistics every 1–3,600 seconds |
+| `--stats-interval SECONDS` | `10` | Maximum statistics interval, 1–3,600 seconds |
 | `--telemetry-interval SECONDS` | `30` | JSONL snapshots every 1–3,600 seconds |
 | `--api-bind ADDRESS:PORT` | Disabled | IPv4 loopback only; for example `127.0.0.1:4079` |
 
 Startup reports GPU preparation, pool connection, subscription, worker authorization
 and waiting for the first job as they happen. Terminal wait times refresh every
 second, independently of `--stats-interval`; redirected output records each phase
-once without cursor control. Mining statistics appear immediately when an authorized
-job is available. Reconnects show the retry delay and subsequent connection phases.
+once without cursor control. After an authorized job arrives, `Starting GPU search...` remains visible until
+a completed-work sample is available. The first rate appears after about one second
+of mining; subsequent delays double (2, 4, 8, 16, ... seconds) up to
+`--stats-interval`. Each reconnect restarts this sequence. An in-flight GPU command
+or share submission can delay a refresh. Reconnects show the retry delay and subsequent connection phases.
 
 The first reached duration/share limit ends the session. Ctrl-C or SIGTERM also
 stops mining. Every GPU-found share is verified on the CPU before submission.

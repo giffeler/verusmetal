@@ -1,6 +1,29 @@
 import Foundation
 import VerusMetalCore
 
+/// Starts with a one-second sample, then doubles the delay up to the user's limit.
+struct MiningStatusSchedule {
+    let maximumInterval: TimeInterval
+    private var interval: TimeInterval = 1
+    private var nextUpdate: TimeInterval?
+
+    var isActive: Bool { nextUpdate != nil }
+
+    mutating func start(at now: TimeInterval) {
+        interval = min(1, maximumInterval)
+        nextUpdate = now + interval
+    }
+
+    mutating func stop() { nextUpdate = nil }
+
+    mutating func consumeIfDue(at now: TimeInterval) -> Bool {
+        guard let nextUpdate, now >= nextUpdate else { return false }
+        interval = min(maximumInterval, interval * 2)
+        self.nextUpdate = now + interval
+        return true
+    }
+}
+
 struct SearchStatisticsSample {
     let nonces: Int
     let dispatches: Int

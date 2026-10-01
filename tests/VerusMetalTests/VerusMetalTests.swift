@@ -262,6 +262,23 @@ final class LifecycleTests: XCTestCase {
 }
 
 final class TelemetryTests: XCTestCase {
+    func testStartupStatusScheduleAndReconnect() {
+        var schedule = MiningStatusSchedule(maximumInterval: 240)
+        XCTAssertFalse(schedule.consumeIfDue(at: 100))
+        schedule.start(at: 0)
+        for time in [1.0, 3, 7, 15, 31, 63, 127, 255, 495, 735] {
+            XCTAssertFalse(schedule.consumeIfDue(at: time - 0.01))
+            XCTAssertTrue(schedule.consumeIfDue(at: time))
+        }
+        schedule.stop()
+        XCTAssertFalse(schedule.consumeIfDue(at: 1000))
+        schedule.start(at: 1000)
+        XCTAssertTrue(schedule.consumeIfDue(at: 1001))
+        var frequent = MiningStatusSchedule(maximumInterval: 1)
+        frequent.start(at: 0)
+        for time in 1...3 { XCTAssertTrue(frequent.consumeIfDue(at: Double(time))) }
+    }
+
     func testIntervalRatesAndIdleTime() throws {
         var before = MinerSnapshot()
         before.nonces = 100; before.dispatches = 1; before.gpuSeconds = 1
