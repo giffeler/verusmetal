@@ -25,7 +25,7 @@ A Developer ID signed and notarized arm64 executable is available from the
 [VerusMetal page](https://ios.gekko.de/verusmetal), with its SHA-256 checksum and
 corresponding source. Extract the ZIP and run `./verusmetal --help` from Terminal.
 Requires Apple Silicon and macOS 27 or later; Xcode is only needed to build from
-source. See the [0.2.2 release notes](Docs/releases/0.2.2.md) for artifact
+source. See the [0.2.3 release notes](Docs/releases/0.2.3.md) for artifact
 identity, validation and limits.
 
 ## Requirements and build
@@ -67,7 +67,6 @@ From the directory containing the executable:
 caffeinate -i ./verusmetal mine \
   --pool stratum+tcp://eu.luckpool.net:3956 \
   --wallet YOUR_VERUS_TRANSPARENT_ADDRESS \
-  --worker m4 \
   --batch-nonces 32768 \
   --stats-file verusmetal.jsonl \
   --stats-interval 240
@@ -85,8 +84,11 @@ For the tested LuckPool endpoint, create a local configuration:
 cp Config/luckpool-tcp.example.json Config/luckpool-tcp.local.json
 ```
 
-Replace `YOUR_VERUS_TRANSPARENT_ADDRESS` in that file with your address. Worker
-is `m4`. This endpoint uses plaintext TCP, explicitly selected by its
+Replace `YOUR_VERUS_TRANSPARENT_ADDRESS` in that file with your address. No rig
+name is sent unless you set `--worker NAME` or `worker` in the configuration.
+Use `--password VALUE` when the pool needs a password other than `x`; the existing
+`VERUSMETAL_POOL_PASSWORD` environment fallback remains available.
+This endpoint uses plaintext TCP, explicitly selected by its
 `stratum+tcp://` scheme. Local configuration files are ignored by Git.
 
 ```sh

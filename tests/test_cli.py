@@ -22,7 +22,7 @@ def run(*arguments, success=True):
     return result.stdout
 
 
-assert run("--version").strip() == "VerusMetal 0.2.2"
+assert run("--version").strip() == "VerusMetal 0.2.3"
 for command in ["devices", "verify", "benchmark", "mine"]:
     assert f"verusmetal {command}" in run(command, "--help")
     assert run(command, "--help") == run(command, "-h")
@@ -31,7 +31,7 @@ for arguments in [[], ["unknown"], ["--version", "--json"], ["help", "--unknown"
                   ["devices", "--json", "true"], ["benchmark", "--batch-nonces"],
                   ["benchmark", "--batch", "64", "--batch-nonces", "64"],
                   ["benchmark", "--batch-nonces", "0"], ["benchmark", "--batch", "32769"],
-                  ["benchmark", "--duration", "0"], ["mine", "--help", "--unknown"]]:
+                  ["benchmark", "--duration", "0"], ["mine", "--password"], ["mine", "--help", "--unknown"]]:
     run(*arguments, success=False)
 
 devices = json.loads(run("devices", "--json"))

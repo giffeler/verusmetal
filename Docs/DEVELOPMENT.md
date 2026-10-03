@@ -92,7 +92,9 @@ changes, validate links and command paths; new hashing experiments are unnecessa
 ## Local state and evidence
 
 Keep wallets in `Config/local.json` or `Config/*.local.json`. Supply pool passwords
-through `VERUSMETAL_POOL_PASSWORD`. Public examples contain placeholders only.
+through `--password VALUE` or `VERUSMETAL_POOL_PASSWORD`; the default is `x`.
+The environment option avoids putting a password in command arguments. Public
+examples contain placeholders only.
 No local configuration or credential is needed to build or run automated tests.
 
 `build/` holds ignored binaries, local logs and GPU traces. Do not remove it as a

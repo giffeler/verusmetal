@@ -130,14 +130,18 @@ private struct Configuration: Decodable {
         }
     }
     private static func mine(_ args: Arguments) throws {
-        try args.validate(valueOptions:["config","pool","wallet","worker","batch-nonces","duration","stats-file","stats-interval","telemetry-interval","api-bind","stop-after-shares"])
+        try args.validate(valueOptions:["config","pool","wallet","worker","password","batch-nonces","duration","stats-file","stats-interval","telemetry-interval","api-bind","stop-after-shares"])
         var config: Configuration?
         if let path = args.string("config") { config = try JSONDecoder().decode(Configuration.self,from:Data(contentsOf:URL(fileURLWithPath:path))) }
         guard let pool = args.string("pool",default:config?.pool) else { throw CLIError.missing("--pool or --config") }
         guard let wallet = args.string("wallet",default:config?.wallet) else { throw CLIError.missing("--wallet or --config") }
         guard VerusAddress.isValid(wallet) else { throw CLIError.invalidAddress }
-        let worker = args.string("worker",default:config?.worker ?? "m4")!
-        guard !worker.isEmpty, worker.utf8.count <= 64, worker.utf8.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }) else { throw CLIError.invalidArgument("worker must be ASCII alphanumeric") }
+        let worker = args.string("worker",default:config?.worker)
+        if let worker {
+            guard !worker.isEmpty, worker.utf8.count <= 64, worker.utf8.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }) else { throw CLIError.invalidArgument("worker must be ASCII alphanumeric") }
+        }
+        let user = wallet + (worker.map { "." + $0 } ?? "")
+        let password = args.string("password",default:ProcessInfo.processInfo.environment["VERUSMETAL_POOL_PASSWORD"] ?? "x")!
         let duration = try args.optionalInt("duration",in:1...604800)
         let shareLimit = try args.optionalInt("stop-after-shares",in:1...1_000_000)
         let interval = try args.int("stats-interval",default:10,in:1...3600)
@@ -151,8 +155,8 @@ private struct Configuration: Decodable {
         if let error = writer.failure { throw error }
         let coordinator = MiningCoordinator(stats:stats,writer:writer,batchSize:solver.batchSize,telemetryInterval:telemetryInterval,
             onMessage: { console.message($0) }, onStartupStatus: { console.startup($0) })
-        let client = try VerusStratumClient(url:pool,user:wallet+"."+worker,
-                                           password:ProcessInfo.processInfo.environment["VERUSMETAL_POOL_PASSWORD"] ?? "x") { [weak coordinator] event in coordinator?.handle(event) }
+        let client = try VerusStratumClient(url:pool,user:user,
+                                           password:password) { [weak coordinator] event in coordinator?.handle(event) }
         coordinator.configure(client:client)
         let server = StatisticsHTTPServer(store:stats)
         if let bind = args.string("api-bind") { try server.start(bind:bind) }
@@ -169,7 +173,8 @@ private struct Configuration: Decodable {
         var nonceSequence: NonceSequence?
         var noncePrefix: [UInt8]?
         var accumulator = SearchStatisticsAccumulator()
-        console.message("Mining on \(client.redactedHost), worker \(worker), device \(solver.device.name)")
+        let workerDescription = worker.map { ", worker \($0)" } ?? ""
+        console.message("Mining on \(client.redactedHost)\(workerDescription), device \(solver.device.name)")
         coordinator.start()
         do {
             while !coordinator.isStopped {

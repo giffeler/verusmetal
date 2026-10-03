@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--terminal-width', type=int, help='Exercise status output in a pseudo-terminal')
 parser.add_argument('--quiet', action='store_true', help='Verify silent mining with telemetry and API enabled')
+parser.add_argument('--credentials-case', choices=['default','cli','environment'], default='default')
 options = parser.parse_args()
 if options.quiet and options.terminal_width is not None:
     parser.error('quiet and terminal-width checks run separately')
@@ -34,6 +35,13 @@ if options.terminal_width is not None and options.terminal_width < 2:
 BINARY = ROOT / 'build/miner/Build/Products/Release/verusmetal'
 CHECKER = ROOT / 'build/setup/libverus-check.dylib'
 WALLET = 'R9HDHYTuwAr3PyRkXrhYgwycrxC7Xja8zs'
+WORKER = 'rig1' if options.credentials_case == 'default' else None
+USER = WALLET + ('.' + WORKER if WORKER else '')
+PASSWORD = {'default':'x','cli':'pool-test-password','environment':'environment-test-password'}[options.credentials_case]
+ENVIRONMENT = dict(os.environ)
+ENVIRONMENT.pop('VERUSMETAL_POOL_PASSWORD', None)
+if options.credentials_case != 'default':
+    ENVIRONMENT['VERUSMETAL_POOL_PASSWORD'] = 'environment-test-password'
 TARGET = ((1 << 256)-1)//32
 lib = ctypes.CDLL(str(CHECKER))
 lib.vm_cpu_hashes.argtypes = [ctypes.c_void_p,ctypes.POINTER(ctypes.c_uint32),ctypes.c_uint32,
@@ -66,7 +74,7 @@ def send(sock, payload, fragment=False):
 
 
 def validate_share(params, work, prefix):
-    assert len(params) == 5 and params[0] == WALLET+'.m4'
+    assert len(params) == 5 and params[0] == USER
     assert params[1] == work[0] and params[2] == work[5], 'stale job or nTime'
     nonce = bytes.fromhex(prefix+params[3]); assert len(nonce)==32
     serialized_solution = bytes.fromhex(params[4])
@@ -98,7 +106,7 @@ def serve():
                 if session == 0:time.sleep(1.2)
                 send(sock,{'id':sub['id'],'result':[None,prefix],'error':None},fragment=True)
                 auth=json.loads(stream.readline());assert auth['method']=='mining.authorize'
-                assert auth['params']==[WALLET+'.m4','x']
+                assert auth['params']==[USER,PASSWORD]
                 send(sock,{'method':'mining.set_target','params':[f'{1:064x}']})
                 # Exercise both authorization/job orders and a clean superseding job.
                 if session == 0:
@@ -138,11 +146,13 @@ thread=threading.Thread(target=serve,daemon=True);thread.start()
 log=ROOT/'build/setup/local-pool-events.jsonl'
 if log.exists():log.unlink()
 command=[str(BINARY),'mine','--pool',f'stratum+tcp://127.0.0.1:{port}',
-    '--wallet',WALLET,'--worker','m4','--batch-nonces','64','--duration','15','--stop-after-shares','2',
+    '--wallet',WALLET,'--batch-nonces','64','--duration','15','--stop-after-shares','2',
     '--stats-file',str(log),'--stats-interval','240','--telemetry-interval','1','--api-bind',f'127.0.0.1:{api_port}']
+if WORKER:command.extend(['--worker',WORKER])
+if options.credentials_case == 'cli':command.extend(['--password',PASSWORD])
 if options.quiet:command.append('--quiet')
 if options.terminal_width is None:
-    captured=subprocess.run(command,capture_output=True,timeout=25)
+    captured=subprocess.run(command,capture_output=True,timeout=25,env=ENVIRONMENT)
     result=subprocess.CompletedProcess(command,captured.returncode,captured.stdout.decode(),captured.stderr.decode())
     assert '\x1b' not in result.stdout and '\r' not in result.stdout
 else:
@@ -157,7 +167,7 @@ else:
                 chunks.append(chunk)
         except OSError as error:
             if error.errno != errno.EIO:errors.append(repr(error))
-    process=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=slave,stderr=slave)
+    process=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=slave,stderr=slave,env=ENVIRONMENT)
     os.close(slave)
     reader=threading.Thread(target=read_terminal,daemon=True);reader.start()
     try:
@@ -231,3 +241,8 @@ for s in snapshots:
         assert math.isclose(float(s['interval_hashrate']),int(s['interval_nonces'])/float(s['interval_seconds']))
 assert WALLET not in log.read_text()
 print('Telemetry passed: interval snapshots, target changes, submission context, monotonic response timing, append-only schema.')
+
+if options.credentials_case != 'default':
+    assert PASSWORD not in result.stdout + result.stderr + log.read_text()
+    assert ', worker ' not in result.stdout
+print('Credentials passed:', options.credentials_case)

@@ -106,7 +106,7 @@ enum CLIError: Error, LocalizedError {
     }
 }
 
-let version = "0.2.2"
+let version = "0.2.3"
 
 func commandUsage(_ command: String) -> String? {
     switch command {
@@ -139,7 +139,8 @@ func commandUsage(_ command: String) -> String? {
         Options:
           --pool URL                  Override the configured Stratum endpoint
           --wallet ADDRESS            Override the configured Verus transparent address
-          --worker NAME               ASCII alphanumeric, 1...64 bytes (default: m4)
+          --worker NAME               Optional ASCII alphanumeric name, 1...64 bytes; no default
+          --password VALUE           Pool password; overrides environment (default: x)
           --batch-nonces N            Nonces per dispatch, 1...32768 (default: 32768)
           --batch N                   Compatibility alias for --batch-nonces
           --duration SECONDS          Stop after 1...604800 seconds (default: unlimited)
@@ -151,7 +152,8 @@ func commandUsage(_ command: String) -> String? {
           --api-bind 127.0.0.1:4079   Enable the loopback status API (default: disabled)
 
         CLI pool, wallet and worker settings override the configuration file.
-        The password is VERUSMETAL_POOL_PASSWORD or "x" and is never logged.
+        Password order: --password, VERUSMETAL_POOL_PASSWORD, then "x".
+        Passwords are not printed or written to telemetry.
         TLS uses system certificate validation. No automatic plaintext fallback.
         """
     default: return nil
@@ -172,6 +174,6 @@ Usage:
 Use verusmetal COMMAND --help for command options; -h is also accepted.
 --quiet is accepted before or after any command and suppresses stdout and stderr.
 --batch remains an alias for --batch-nonces. Do not supply both names together.
-The password is VERUSMETAL_POOL_PASSWORD or "x" and is never logged.
+Pool password: --password, VERUSMETAL_POOL_PASSWORD, then "x". No default worker name.
 TLS uses system certificate validation. No automatic plaintext fallback.
 """

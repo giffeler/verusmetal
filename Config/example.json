@@ -1,5 +1,4 @@
 {
   "pool": "stratum+ssl://HOST:PORT",
-  "wallet": "YOUR_VERUS_TRANSPARENT_ADDRESS",
-  "worker": "m4"
+  "wallet": "YOUR_VERUS_TRANSPARENT_ADDRESS"
 }

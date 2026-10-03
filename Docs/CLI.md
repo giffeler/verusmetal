@@ -76,8 +76,10 @@ Alternatively, provide `--pool URL --wallet ADDRESS`. Configuration JSON contain
 required `pool` and `wallet` strings and an optional `worker` string. CLI values
 override the matching fields. Other settings are CLI options only.
 
-Pass the bare address to `--wallet` and the worker separately to `--worker`.
-VerusMetal sends `WALLET.WORKER` in both Stratum authorization and share submission,
+Pass the bare address to `--wallet` and an optional rig name to `--worker`.
+Without a CLI or configured worker, VerusMetal sends only `WALLET`, with no dot
+or default name. With a worker it sends `WALLET.WORKER` in both authorization and
+share submission,
 matching [LuckPool's documented format](https://luckpool.net/verus/connect.html).
 The name shown on a pool website also depends on its server and display logic.
 
@@ -86,7 +88,8 @@ The name shown on a pool website also depends on its server and display logic.
 | `--config PATH` | None | Read pool, wallet and optional worker from JSON |
 | `--pool URL` | Configured pool | `stratum+ssl://`, `stratum+tls://` or explicitly selected `stratum+tcp://`; host and port required |
 | `--wallet ADDRESS` | Configured wallet | Valid Verus transparent address |
-| `--worker NAME` | `m4` | 1–64 ASCII letters or digits |
+| `--worker NAME` | Configured worker or none | Optional; 1–64 ASCII letters or digits |
+| `--password VALUE` | Environment or `x` | Overrides `VERUSMETAL_POOL_PASSWORD` |
 | `--batch-nonces N` | `32768` | 1–32,768 nonces per dispatch |
 | `--batch N` | Same setting | Compatibility alias; do not supply both names |
 | `--duration SECONDS` | Unlimited | Integer from 1 to 604,800 |
@@ -108,8 +111,10 @@ or share submission can delay a refresh. Reconnects show the retry delay and sub
 The first reached duration/share limit ends the session. Ctrl-C or SIGTERM also
 stops mining. Every GPU-found share is verified on the CPU before submission.
 
-The pool password comes from `VERUSMETAL_POOL_PASSWORD` and defaults to `x`.
-There is no password argument or password field in the configuration schema.
+Password precedence is `--password VALUE`, then `VERUSMETAL_POOL_PASSWORD`, then
+`x`. There is no password field in configuration JSON. Passwords are not printed
+or written to telemetry. CLI values may appear in shell history and process
+arguments; use the environment fallback if that matters for your pool password.
 Keep local settings under `Config/`; Git ignores JSON files there except explicit
 example files. Public examples use wallet placeholders. Never provide private
 keys or seed phrases: the miner only needs a public receiving address.
