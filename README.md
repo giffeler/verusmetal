@@ -25,12 +25,11 @@ A Developer ID signed and notarized arm64 executable is available from the
 [VerusMetal page](https://ios.gekko.de/verusmetal), with its SHA-256 checksum and
 corresponding source. Extract the ZIP and run `./verusmetal --help` from Terminal.
 Requires Apple Silicon and macOS 27 or later; Xcode is only needed to build from
-source. The current distribution is the **11 November 2026** optimized toolchain
-refresh of 0.2.3, signed with gekko's organization Developer ID.
+source. The **21 November 2026** build of version 0.2.3 passed all 19 miner
+tests under Swift Testing and all 148 independent CPU/GPU reference vectors.
 [Download ZIP](https://ios.gekko.de/apps/verusmetal/download) ·
-[SHA-256 checksum](https://ios.gekko.de/apps/verusmetal/verusmetal-macos-arm64-2026-11-11-notarized.zip.sha256) ·
-[Release notes](Docs/releases/2026-11-11.md). Mining behavior is unchanged;
-no new performance improvement is claimed.
+[SHA-256 checksum](https://ios.gekko.de/apps/verusmetal/verusmetal-macos-arm64-2026-11-21-notarized.zip.sha256) ·
+[Release notes](Docs/releases/2026-11-21.md).
 
 ## Requirements and build
 
