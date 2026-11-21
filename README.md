@@ -134,7 +134,7 @@ are described in [protocol notes](Docs/PROTOCOL.md).
 ## Verification and monitoring
 
 ```sh
-make test-miner         # XCTest, 148 independent vectors, Metal validation
+make test-miner         # Swift Testing, 148 independent vectors, Metal validation
 make integration-miner # CLI, synthetic local pool, reconnect and status API checks
 make sanitize-v22      # CPU AddressSanitizer and UndefinedBehaviorSanitizer
 ```
